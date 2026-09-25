@@ -2,6 +2,8 @@ import express from "express";
 import cors from "cors";
 
 import customerRoutes from "./routes/customerRoutes";
+import appointmentRoutes from "./routes/appointmentRoutes";
+
 
 const app = express();
 
@@ -15,6 +17,8 @@ app.get("/api/test", (req, res) => {
 });
 
 app.use("/api/customers", customerRoutes);
+
+app.use("/api/appointments", appointmentRoutes);
 
 const PORT = 3000;
 
