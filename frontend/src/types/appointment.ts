@@ -12,11 +12,17 @@ export interface AppointmentPet {
     remark: string | null;
 }
 
+export type AppointmentStatus =
+    | "PENDING"
+    | "CONFIRMED"
+    | "COMPLETED"
+    | "CANCELLED";
+
 export interface Appointment {
     appointment_id: string;
     appointment_date: string;
     start_time: string;
-    status: string;
+    status: AppointmentStatus;
     remark: string | null;
 
     customer_id: string;
