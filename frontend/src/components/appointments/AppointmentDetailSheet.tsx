@@ -33,7 +33,7 @@ function AppointmentDetailSheet({ appointment, onClose, onComplete, onEdit, onCa
                     </section>
                 ))}
             </div>
-            {appointment.status !== "COMPLETED" && appointment.status !== "CANCELLED" && (
+            {appointment.status === "CONFIRMED" && (
                 <>
                     <button className="primary-button" type="button" onClick={onComplete} disabled={busy}>Complete Appointment</button>
                     <button className="secondary-button" type="button" onClick={onEdit} disabled={busy}>Edit Appointment</button>

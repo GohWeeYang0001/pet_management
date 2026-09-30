@@ -21,3 +21,17 @@ export async function createPet(
         body: JSON.stringify({ pet_name, pet_type, pet_remark }),
     }));
 }
+
+export async function updatePet(
+    customerId: string,
+    petId: string,
+    pet_name: string,
+    pet_type: string,
+    pet_remark: string,
+): Promise<Pet> {
+    return readResponse<Pet>(await fetch(`${petsUrl(customerId)}/${encodeURIComponent(petId)}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pet_name, pet_type, pet_remark }),
+    }));
+}

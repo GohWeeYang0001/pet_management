@@ -19,7 +19,7 @@ export interface CustomerOverview {
         appointment_id: string;
         appointment_date: string;
         start_time: string;
-        status: "PENDING" | "CONFIRMED" | "COMPLETED" | "CANCELLED";
+        status: "CONFIRMED" | "COMPLETED" | "CANCELLED";
         amount: number;
         pets: Array<{ pet_name: string; service_name: string; amount: number | null }>;
     }>;

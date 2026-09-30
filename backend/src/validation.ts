@@ -34,3 +34,10 @@ export function isOptionalText(value: unknown): value is string | null | undefin
 export function isTime(value: unknown): value is string {
     return typeof value === "string" && /^([01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/.test(value);
 }
+
+export const expenseCategories = ["INVENTORY", "TRANSPORT", "TOOLS", "UTILITIES", "MARKETING", "OTHER"] as const;
+export type ExpenseCategory = typeof expenseCategories[number];
+
+export function isExpenseCategory(value: unknown): value is ExpenseCategory {
+    return typeof value === "string" && expenseCategories.some((category) => category === value);
+}

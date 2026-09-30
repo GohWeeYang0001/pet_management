@@ -13,7 +13,6 @@ export interface AppointmentPet {
 }
 
 export type AppointmentStatus =
-    | "PENDING"
     | "CONFIRMED"
     | "COMPLETED"
     | "CANCELLED";

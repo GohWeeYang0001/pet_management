@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { pool } from "../db";
-import { isDateOnly, isId, isMoney, isMonth, isOptionalText, isText } from "../validation";
+import { isDateOnly, isExpenseCategory, isId, isMoney, isMonth, isOptionalText, isText } from "../validation";
 
 function validExpense(body: unknown): body is {
     expense_date: string; category: string; item_name: string;
@@ -8,7 +8,7 @@ function validExpense(body: unknown): body is {
 } {
     if (typeof body !== "object" || body === null) return false;
     const row = body as Record<string, unknown>;
-    return isDateOnly(row.expense_date) && isText(row.category, 50) &&
+    return isDateOnly(row.expense_date) && isExpenseCategory(row.category) &&
         isText(row.item_name, 100) && isMoney(row.amount) && isOptionalText(row.remark);
 }
 
@@ -46,7 +46,7 @@ export async function createExpense(req: Request, res: Response): Promise<void> 
         const result = await pool.query(
             `INSERT INTO expense (expense_date, category, item_name, amount, remark, source)
              VALUES ($1, $2, $3, $4, $5, 'MANUAL') RETURNING ${columns}`,
-            [expense_date, category.trim(), item_name.trim(), amount, remark?.trim() || null],
+            [expense_date, category, item_name.trim(), amount, remark?.trim() || null],
         );
         res.status(201).json({ ...result.rows[0], amount: Number(result.rows[0].amount) });
     } catch (error) {
@@ -66,7 +66,7 @@ export async function updateExpense(req: Request, res: Response): Promise<void> 
         const result = await pool.query(
             `UPDATE expense SET expense_date = $1, category = $2, item_name = $3,
              amount = $4, remark = $5 WHERE expense_id = $6 RETURNING ${columns}`,
-            [expense_date, category.trim(), item_name.trim(), amount, remark?.trim() || null, id],
+            [expense_date, category, item_name.trim(), amount, remark?.trim() || null, id],
         );
         if (result.rowCount === 0) {
             res.status(404).json({ message: "Expense not found" });

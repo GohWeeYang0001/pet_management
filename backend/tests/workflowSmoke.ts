@@ -3,9 +3,11 @@ import { pool } from "../src/db";
 const baseUrl = "http://localhost:3000";
 const marker = `Codex workflow QA ${Date.now()}`;
 let customerId: string | null = null;
+let otherCustomerId: string | null = null;
 let appointmentId: string | null = null;
 let cancelledAppointmentId: string | null = null;
 let expenseId: string | null = null;
+const extraExpenseIds: Array<{ id: string; itemName: string }> = [];
 let inventoryId: string | null = null;
 let serviceId: string | null = null;
 
@@ -43,6 +45,11 @@ async function cleanup(): Promise<void> {
             if (owned.rowCount !== 1) throw new Error("QA expense marker did not match; cleanup stopped");
             await client.query("DELETE FROM expense WHERE expense_id = $1", [expenseId]);
         }
+        for (const extra of extraExpenseIds) {
+            const owned = await client.query("SELECT expense_id FROM expense WHERE expense_id = $1 AND item_name = $2 FOR UPDATE", [extra.id, extra.itemName]);
+            if (owned.rowCount !== 1) throw new Error("QA category expense marker did not match; cleanup stopped");
+            await client.query("DELETE FROM expense WHERE expense_id = $1", [extra.id]);
+        }
         if (serviceId) {
             const owned = await client.query("SELECT service_id FROM service WHERE service_id = $1 AND service_name = $2 FOR UPDATE", [serviceId, marker]);
             if (owned.rowCount !== 1) throw new Error("QA service marker did not match; cleanup stopped");
@@ -62,6 +69,11 @@ async function cleanup(): Promise<void> {
             "DELETE FROM customer WHERE customer_id = $1 AND customer_name = $2",
             [customerId, marker],
         );
+        }
+        if (otherCustomerId) {
+            const owned = await client.query("SELECT customer_id FROM customer WHERE customer_id = $1 AND customer_name = $2 FOR UPDATE", [otherCustomerId, `${marker} other`]);
+            if (owned.rowCount !== 1) throw new Error("QA second customer marker did not match; cleanup stopped");
+            await client.query("DELETE FROM customer WHERE customer_id = $1", [otherCustomerId]);
         }
         await client.query("COMMIT");
     } catch (error) {
@@ -83,6 +95,11 @@ async function main(): Promise<void> {
         }));
         customerId = customer.customer_id;
 
+        const otherCustomer = await request<{ customer_id: string }>("/api/customers", json("POST", {
+            customer_name: `${marker} other`, customer_hp: "0000000001",
+        }));
+        otherCustomerId = otherCustomer.customer_id;
+
         const petA = await request<{ pet_id: string }>(`/api/customers/${customerId}/pets`, json("POST", {
             pet_name: "QA Pet A", pet_type: "Dog", pet_remark: "Temporary QA record",
         }));
@@ -91,6 +108,20 @@ async function main(): Promise<void> {
         }));
         const customerPets = await request<Array<{ pet_id: string }>>(`/api/customers/${customerId}/pets`);
         if (customerPets.length !== 2) throw new Error("Expected two customer pets");
+        await request(`/api/customers/${customerId}/pets/${petA.pet_id}`, json("PUT", {
+            pet_name: "QA Pet A edited", pet_type: "Small Dog", pet_remark: "Sensitive skin",
+        }));
+        const editedPets = await request<Array<{ pet_id: string; pet_name: string; pet_type: string; pet_remark: string }>>(`/api/customers/${customerId}/pets`);
+        const editedPet = editedPets.find((pet) => String(pet.pet_id) === String(petA.pet_id));
+        if (editedPet?.pet_name !== "QA Pet A edited" || editedPet.pet_type !== "Small Dog" || editedPet.pet_remark !== "Sensitive skin") throw new Error("Pet update did not persist");
+        await expectStatus(`/api/customers/${otherCustomerId}/pets/${petA.pet_id}`, json("PUT", {
+            pet_name: "Wrong owner", pet_type: "Dog", pet_remark: "",
+        }), 404);
+
+        await expectStatus("/api/appointments", json("POST", {
+            customer_id: customerId, appointment_date: "2026-10-02", start_time: "15:00", status: "PENDING",
+            pets: [{ pet_id: petA.pet_id, service_id: services[0].service_id }],
+        }), 400);
 
         const created = await request<{ appointment_id: string }>("/api/appointments", json("POST", {
             customer_id: customerId,
@@ -112,7 +143,7 @@ async function main(): Promise<void> {
         };
         const before = await request<Appointment[]>("/api/appointments");
         const appointment = before.find((item) => String(item.appointment_id) === String(appointmentId));
-        if (!appointment || appointment.appointment_date !== "2026-10-02" || appointment.pets.length !== 2) {
+        if (!appointment || appointment.appointment_date !== "2026-10-02" || appointment.pets.length !== 2 || appointment.status !== "CONFIRMED") {
             throw new Error("Created appointment or two pet rows were not returned correctly");
         }
 
@@ -133,7 +164,7 @@ async function main(): Promise<void> {
         await request(`/api/appointments/${cancelledAppointmentId}/cancel`, { method: "PATCH" });
         const cancelledRow = (await request<Appointment[]>("/api/appointments"))
             .find((item) => String(item.appointment_id) === String(cancelledAppointmentId));
-        if (cancelledRow?.status !== "CANCELLED") throw new Error("Appointment cancel did not persist");
+        if (cancelledRow?.status !== "CANCELLED") throw new Error("Confirmed appointment cancel did not persist");
 
         const baseline = await request<{ revenue: number; expenses: number; net: number; completed_appointments: number }>("/api/reports/monthly?month=2026-10");
 
@@ -161,6 +192,16 @@ async function main(): Promise<void> {
             expense_date: "2026-10-03", category: "TRANSPORT", item_name: marker, amount: 50, remark: "QA",
         }));
         expenseId = expense.expense_id;
+        for (const category of ["TOOLS", "UTILITIES", "MARKETING", "OTHER", "INVENTORY"]) {
+            const itemName = `${marker} ${category}`;
+            const extra = await request<{ expense_id: string }>("/api/expenses", json("POST", {
+                expense_date: "2026-10-03", category, item_name: itemName, amount: 1, remark: "QA category",
+            }));
+            extraExpenseIds.push({ id: extra.expense_id, itemName });
+        }
+        await expectStatus("/api/expenses", json("POST", {
+            expense_date: "2026-10-03", category: "UNLISTED", item_name: marker, amount: 1,
+        }), 400);
         const item = await request<{ inventory_item_id: string }>("/api/inventory", json("POST", {
             item_name: marker, current_quantity: 2, unit: "bottle", reorder_level: 2,
         }));
@@ -174,9 +215,11 @@ async function main(): Promise<void> {
         if (items.find((row) => String(row.inventory_item_id) === String(inventoryId))?.current_quantity !== 6) throw new Error("Inventory quantity incorrect");
         const transactions = await request<Array<{ transaction_type: string }>>(`/api/inventory/${inventoryId}/transactions`);
         if (transactions.length !== 2) throw new Error("Inventory transactions missing");
+        const monthExpenses = await request<Array<{ category: string; source: string; amount: number }>>("/api/expenses?month=2026-10");
+        if (!monthExpenses.some((row) => row.category === "INVENTORY" && row.source === "INVENTORY" && Number(row.amount) === 180)) throw new Error("Stock-in did not create an INVENTORY expense");
         const finalReport = await request<typeof baseline>("/api/reports/monthly?month=2026-10");
-        if (Math.abs((finalReport.expenses - baseline.expenses) - 230) > 0.001 ||
-            Math.abs((finalReport.net - completedReport.net) + 230) > 0.001) throw new Error("Expense/net report incorrect");
+        if (Math.abs((finalReport.expenses - baseline.expenses) - 235) > 0.001 ||
+            Math.abs((finalReport.net - completedReport.net) + 235) > 0.001) throw new Error("Expense/net report incorrect");
 
         const service = await request<{ service_id: string }>("/api/services", json("POST", { service_name: marker, default_price: 10 }));
         serviceId = service.service_id;
@@ -187,7 +230,7 @@ async function main(): Promise<void> {
             customer_id: customerId, appointment_date: "2026-10-04", start_time: "10:00", remark: "Inactive QA",
             pets: [{ pet_id: petA.pet_id, service_id: serviceId, remark: null }],
         }), 400);
-        console.log("PASS: appointment edit/cancel/complete, customer overview, revenue, expenses, inventory, service deactivation");
+        console.log("PASS: confirmed-only appointments, pet add/edit/ownership, six expense categories, calendar data, revenue, inventory, services");
     } finally {
         try {
             await cleanup();

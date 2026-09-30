@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import MonthPicker from "../components/MonthPicker";
 import BottomSheet from "../components/sheets/BottomSheet";
 import { createExpense, deleteExpense, getExpenses, updateExpense } from "../services/expenseService";
-import type { Expense } from "../types/expense";
+import { expenseCategories, type Expense, type ExpenseCategory } from "../types/expense";
 import { formatAppointmentDate, formatMoney } from "../utils/appointmentFormat";
 import { currentMonth, todayDateOnly } from "../utils/month";
 
@@ -11,7 +11,7 @@ export default function ExpensesPage() {
     const [expenses, setExpenses] = useState<Expense[]>([]);
     const [selected, setSelected] = useState<Expense | null | undefined>(undefined);
     const [date, setDate] = useState(todayDateOnly());
-    const [category, setCategory] = useState("OTHER");
+    const [category, setCategory] = useState<ExpenseCategory>("OTHER");
     const [item, setItem] = useState("");
     const [amount, setAmount] = useState("");
     const [remark, setRemark] = useState("");
@@ -40,7 +40,7 @@ export default function ExpensesPage() {
         }
         setSaving(true); setFormError("");
         try {
-            const input = { expense_date: date, category: category.trim().toUpperCase(), item_name: item.trim(), amount: value, remark: remark.trim() || null };
+            const input = { expense_date: date, category, item_name: item.trim(), amount: value, remark: remark.trim() || null };
             if (selected) await updateExpense(selected.expense_id, input); else await createExpense(input);
             const savedMonth = date.slice(0, 7);
             setMonth(savedMonth);
@@ -62,14 +62,15 @@ export default function ExpensesPage() {
         {error && <p className="form-error" role="alert">{error}</p>}
         {loading ? <p className="form-hint">Loading expenses...</p> : <div className="business-list">
             {expenses.length ? expenses.map((expense) => <button className="business-row" type="button" key={expense.expense_id} onClick={() => open(expense)}>
-                <span><strong>{expense.item_name}</strong><small>{formatAppointmentDate(expense.expense_date)} · {expense.category}{expense.source === "INVENTORY" ? " · Stock purchase" : ""}</small></span><strong>{formatMoney(expense.amount)}</strong>
+                <span><strong>{expense.item_name}</strong><small>{formatAppointmentDate(expense.expense_date)} · {expenseCategories.find((entry) => entry.value === expense.category)?.label ?? expense.category}{expense.source === "INVENTORY" ? " · Stock purchase" : ""}</small></span><strong>{formatMoney(expense.amount)}</strong>
             </button>) : <p className="empty-state">No expenses this month.</p>}
         </div>}
         {selected !== undefined && <BottomSheet title={selected ? "Edit Expense" : "Add Expense"} onClose={() => setSelected(undefined)}>
             <div className="sheet-form"><div className="form-card">
                 <label>Date<input type="date" value={date} onChange={(event) => setDate(event.target.value)} required /></label>
-                <label>Category<input list="expense-categories" value={category} onChange={(event) => setCategory(event.target.value)} maxLength={50} required /></label>
-                <datalist id="expense-categories"><option value="INVENTORY" /><option value="TOOLS" /><option value="TRANSPORT" /><option value="UTILITIES" /><option value="OTHER" /></datalist>
+                <label>Category<select value={category} onChange={(event) => setCategory(event.target.value as ExpenseCategory)} required>
+                    {expenseCategories.map((entry) => <option key={entry.value} value={entry.value}>{entry.label}</option>)}
+                </select></label>
                 <label>Item<input value={item} onChange={(event) => setItem(event.target.value)} maxLength={100} required /></label>
                 <label>Amount (RM)<input type="number" min="0" step="0.01" inputMode="decimal" value={amount} onChange={(event) => setAmount(event.target.value)} required /></label>
                 <label>Remark<textarea rows={2} value={remark} onChange={(event) => setRemark(event.target.value)} /></label>

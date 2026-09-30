@@ -12,10 +12,12 @@ export async function createAppointment(
         appointment_date,
         start_time,
         remark,
-        pets
+        pets,
+        status,
     } = req.body ?? {};
 
     if (
+        (status !== undefined && status !== "CONFIRMED") ||
         !isId(customer_id) ||
         !isDateOnly(appointment_date) ||
         !isTime(start_time) ||
@@ -275,9 +277,9 @@ export async function completeAppointment(req: Request, res: Response): Promise<
             res.status(404).json({ message: "Appointment not found" });
             return;
         }
-        if (appointmentResult.rows[0].status === "CANCELLED") {
+        if (appointmentResult.rows[0].status !== "CONFIRMED") {
             await client.query("ROLLBACK");
-            res.status(409).json({ message: "Cancelled appointments cannot be completed" });
+            res.status(409).json({ message: "Only confirmed appointments can be completed" });
             return;
         }
 
@@ -361,9 +363,9 @@ export async function editAppointment(req: Request, res: Response): Promise<void
             res.status(404).json({ message: "Appointment not found" });
             return;
         }
-        if (!(["PENDING", "CONFIRMED"] as string[]).includes(found.rows[0].status)) {
+        if (found.rows[0].status !== "CONFIRMED") {
             await client.query("ROLLBACK");
-            res.status(409).json({ message: "Only pending or confirmed appointments can be edited" });
+            res.status(409).json({ message: "Only confirmed appointments can be edited" });
             return;
         }
 
@@ -444,7 +446,7 @@ export async function cancelAppointment(req: Request, res: Response): Promise<vo
     try {
         const result = await pool.query(
             `UPDATE appointment SET status = 'CANCELLED', updated_at = CURRENT_TIMESTAMP
-             WHERE appointment_id = $1 AND status IN ('PENDING', 'CONFIRMED')
+             WHERE appointment_id = $1 AND status = 'CONFIRMED'
              RETURNING appointment_id`,
             [id],
         );
@@ -454,7 +456,7 @@ export async function cancelAppointment(req: Request, res: Response): Promise<vo
         }
         const found = await pool.query("SELECT status FROM appointment WHERE appointment_id = $1", [id]);
         res.status(found.rowCount === 0 ? 404 : 409).json({
-            message: found.rowCount === 0 ? "Appointment not found" : "Only pending or confirmed appointments can be cancelled",
+            message: found.rowCount === 0 ? "Appointment not found" : "Only confirmed appointments can be cancelled",
         });
     } catch (error) {
         console.error("Error cancelling appointment:", error);

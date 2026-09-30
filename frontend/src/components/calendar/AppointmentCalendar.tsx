@@ -4,7 +4,7 @@ import interactionPlugin from "@fullcalendar/interaction";
 import type { DayCellContentArg, EventInput } from "@fullcalendar/core";
 import { useMemo } from "react";
 
-import type { Appointment } from "../../types/appointment";
+import type { Appointment, AppointmentStatus } from "../../types/appointment";
 
 interface AppointmentCalendarProps {
     appointments: Appointment[];
@@ -19,15 +19,18 @@ function toLocalDateKey(date: Date) {
     return `${year}-${month}-${day}`;
 }
 
+const statusOrder: AppointmentStatus[] = ["CONFIRMED", "COMPLETED", "CANCELLED"];
+
 function AppointmentCalendar({ appointments, onDateSelect }: AppointmentCalendarProps) {
     const appointmentCounts = useMemo(() => {
-        const counts = new Map<string, number>();
+        const counts = new Map<string, Record<AppointmentStatus, number>>();
 
         appointments.forEach((appointment) => {
-            counts.set(
-                appointment.appointment_date,
-                (counts.get(appointment.appointment_date) ?? 0) + 1,
-            );
+            const day = counts.get(appointment.appointment_date) ?? {
+                CONFIRMED: 0, COMPLETED: 0, CANCELLED: 0,
+            };
+            day[appointment.status] += 1;
+            counts.set(appointment.appointment_date, day);
         });
 
         return counts;
@@ -46,25 +49,24 @@ function AppointmentCalendar({ appointments, onDateSelect }: AppointmentCalendar
     );
 
     function renderDayCell(arg: DayCellContentArg) {
-        const count = appointmentCounts.get(toLocalDateKey(arg.date)) ?? 0;
+        const counts = appointmentCounts.get(toLocalDateKey(arg.date));
 
         return (
             <>
                 <span className="fc-daygrid-day-number">{arg.dayNumberText}</span>
-                {count > 0 && (
-                    <span
-                        className="day-appointment-count"
-                        aria-label={`${count} appointment${count === 1 ? "" : "s"}`}
-                    >
-                        {count}
-                    </span>
-                )}
+                {counts && <span className="day-status-indicators">
+                    {statusOrder.filter((status) => counts[status] > 0).map((status) => <span
+                        className={`day-status-count status-${status.toLowerCase()}`}
+                        aria-label={`${counts[status]} ${status.toLowerCase()} appointment${counts[status] === 1 ? "" : "s"}`}
+                        key={status}
+                    ><span className="status-dot" aria-hidden="true" />{counts[status]}</span>)}
+                </span>}
             </>
         );
     }
 
     return (
-        <FullCalendar
+        <><FullCalendar
             plugins={[dayGridPlugin, interactionPlugin]}
             initialView="dayGridMonth"
             headerToolbar={{ left: "prev,next", center: "title", right: "today" }}
@@ -78,6 +80,11 @@ function AppointmentCalendar({ appointments, onDateSelect }: AppointmentCalendar
             dayMaxEvents={false}
             buttonText={{ today: "Today" }}
         />
+        <div className="calendar-status-legend" aria-label="Appointment status legend">
+            {statusOrder.map((status) => <span key={status} className={`legend-item status-${status.toLowerCase()}`}>
+                <span className="status-dot" aria-hidden="true" />{status.charAt(0) + status.slice(1).toLowerCase()}
+            </span>)}
+        </div></>
     );
 }
 

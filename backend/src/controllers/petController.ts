@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { pool } from "../db";
+import { isId, isOptionalText, isText } from "../validation";
 
 async function customerExists(customerId: string): Promise<boolean> {
     const result = await pool.query(
@@ -56,5 +57,35 @@ export async function createCustomerPet(req: Request, res: Response): Promise<vo
     } catch (error) {
         console.error("Error creating customer pet:", error);
         res.status(500).json({ message: "Failed to create pet" });
+    }
+}
+
+export async function updateCustomerPet(req: Request, res: Response): Promise<void> {
+    const { customerId, petId } = req.params;
+    const { pet_name, pet_type, pet_remark } = req.body ?? {};
+    if (!isId(customerId) || !isId(petId) || !isText(pet_name, 100) ||
+        (pet_type != null && !isText(pet_type, 50, false)) || !isOptionalText(pet_remark)) {
+        res.status(400).json({ message: "Valid customer, pet and pet name are required" });
+        return;
+    }
+    try {
+        if (!(await customerExists(String(customerId)))) {
+            res.status(404).json({ message: "Customer not found" });
+            return;
+        }
+        const result = await pool.query(
+            `UPDATE pet SET pet_name = $1, pet_type = $2, pet_remark = $3
+             WHERE pet_id = $4 AND customer_id = $5
+             RETURNING pet_id, customer_id, pet_name, pet_type, pet_remark`,
+            [pet_name.trim(), pet_type?.trim() || null, pet_remark?.trim() || null, petId, customerId],
+        );
+        if (result.rowCount === 0) {
+            res.status(404).json({ message: "Pet not found for this customer" });
+            return;
+        }
+        res.json(result.rows[0]);
+    } catch (error) {
+        console.error("Error updating customer pet:", error);
+        res.status(500).json({ message: "Failed to update pet" });
     }
 }
