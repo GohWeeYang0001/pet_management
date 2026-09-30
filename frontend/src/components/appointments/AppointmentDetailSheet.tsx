@@ -6,9 +6,12 @@ interface Props {
     appointment: Appointment;
     onClose: () => void;
     onComplete: () => void;
+    onEdit: () => void;
+    onCancel: () => void;
+    busy?: boolean;
 }
 
-function AppointmentDetailSheet({ appointment, onClose, onComplete }: Props) {
+function AppointmentDetailSheet({ appointment, onClose, onComplete, onEdit, onCancel, busy }: Props) {
     return (
         <BottomSheet title="Appointment details" subtitle={appointment.customer_name} onClose={onClose}>
             <div className="detail-summary">
@@ -31,7 +34,11 @@ function AppointmentDetailSheet({ appointment, onClose, onComplete }: Props) {
                 ))}
             </div>
             {appointment.status !== "COMPLETED" && appointment.status !== "CANCELLED" && (
-                <button className="primary-button" type="button" onClick={onComplete}>Complete Appointment</button>
+                <>
+                    <button className="primary-button" type="button" onClick={onComplete} disabled={busy}>Complete Appointment</button>
+                    <button className="secondary-button" type="button" onClick={onEdit} disabled={busy}>Edit Appointment</button>
+                    <button className="danger-button" type="button" onClick={onCancel} disabled={busy}>{busy ? "Cancelling..." : "Cancel Appointment"}</button>
+                </>
             )}
             <button className="secondary-button" type="button" onClick={onClose}>Close</button>
         </BottomSheet>

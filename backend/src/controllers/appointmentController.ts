@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { pool } from "../db";
+import { isDateOnly, isId, isOptionalText, isTime } from "../validation";
 
 export async function createAppointment(
     req: Request,
@@ -12,14 +13,19 @@ export async function createAppointment(
         start_time,
         remark,
         pets
-    } = req.body;
+    } = req.body ?? {};
 
     if (
-        !customer_id ||
-        !appointment_date ||
-        !start_time ||
+        !isId(customer_id) ||
+        !isDateOnly(appointment_date) ||
+        !isTime(start_time) ||
+        !isOptionalText(remark) ||
         !Array.isArray(pets) ||
-        pets.length === 0
+        pets.length === 0 ||
+        !pets.every((pet: unknown) => typeof pet === "object" && pet !== null &&
+            isId((pet as { pet_id?: unknown }).pet_id) &&
+            isId((pet as { service_id?: unknown }).service_id) &&
+            isOptionalText((pet as { remark?: unknown }).remark))
     ) {
         res.status(400).json({
             message: "Customer, date, time and at least one pet are required"
@@ -85,9 +91,19 @@ export async function createAppointment(
             );
 
             if (petResult.rows.length === 0) {
-                throw new Error(
-                    `Pet ${pet.pet_id} does not belong to this customer`
-                );
+                await client.query("ROLLBACK");
+                res.status(400).json({ message: "Choose pets belonging to this customer" });
+                return;
+            }
+
+            const serviceResult = await client.query(
+                "SELECT 1 FROM service WHERE service_id = $1 AND is_active = TRUE",
+                [pet.service_id],
+            );
+            if (serviceResult.rowCount === 0) {
+                await client.query("ROLLBACK");
+                res.status(400).json({ message: "Choose an active service" });
+                return;
             }
 
             await client.query(
@@ -300,5 +316,148 @@ export async function completeAppointment(req: Request, res: Response): Promise<
         res.status(500).json({ message: "Failed to complete appointment" });
     } finally {
         client?.release();
+    }
+}
+
+interface EditablePet {
+    appointment_pet_id?: string | number;
+    pet_id: string | number;
+    service_id: string | number;
+    remark?: string | null;
+}
+
+export async function editAppointment(req: Request, res: Response): Promise<void> {
+    const id = req.params.id;
+    const { appointment_date, start_time, remark, pets } = req.body ?? {};
+    if (!isId(id) || !isDateOnly(appointment_date) || !isTime(start_time) ||
+        !isOptionalText(remark) || !Array.isArray(pets) || pets.length === 0 ||
+        !pets.every((pet: unknown) => {
+            if (typeof pet !== "object" || pet === null) return false;
+            const row = pet as Partial<EditablePet>;
+            return (row.appointment_pet_id == null || isId(row.appointment_pet_id)) &&
+                isId(row.pet_id) && isId(row.service_id) && isOptionalText(row.remark);
+        })) {
+        res.status(400).json({ message: "Valid date, time and at least one pet with a service are required" });
+        return;
+    }
+
+    const rows = pets as EditablePet[];
+    const existingIds = rows.filter((row) => row.appointment_pet_id != null)
+        .map((row) => String(row.appointment_pet_id));
+    if (new Set(existingIds).size !== existingIds.length) {
+        res.status(400).json({ message: "Appointment pet rows must be unique" });
+        return;
+    }
+
+    const client = await pool.connect();
+    try {
+        await client.query("BEGIN");
+        const found = await client.query(
+            "SELECT customer_id, status FROM appointment WHERE appointment_id = $1 FOR UPDATE",
+            [id],
+        );
+        if (found.rowCount === 0) {
+            await client.query("ROLLBACK");
+            res.status(404).json({ message: "Appointment not found" });
+            return;
+        }
+        if (!(["PENDING", "CONFIRMED"] as string[]).includes(found.rows[0].status)) {
+            await client.query("ROLLBACK");
+            res.status(409).json({ message: "Only pending or confirmed appointments can be edited" });
+            return;
+        }
+
+        const current = await client.query(
+            "SELECT appointment_pet_id, service_id FROM appointment_pet WHERE appointment_id = $1 FOR UPDATE",
+            [id],
+        );
+        const currentRows = new Map<string, string>(current.rows.map((row: {
+            appointment_pet_id: string; service_id: string;
+        }) => [String(row.appointment_pet_id), String(row.service_id)]));
+        if (existingIds.some((rowId) => !currentRows.has(rowId))) {
+            await client.query("ROLLBACK");
+            res.status(400).json({ message: "An appointment pet row does not belong to this appointment" });
+            return;
+        }
+
+        const keptIds = [...existingIds];
+        for (const row of rows) {
+            const pet = await client.query(
+                "SELECT 1 FROM pet WHERE pet_id = $1 AND customer_id = $2",
+                [row.pet_id, found.rows[0].customer_id],
+            );
+            const service = await client.query(
+                "SELECT is_active FROM service WHERE service_id = $1",
+                [row.service_id],
+            );
+            if (pet.rowCount === 0 || service.rowCount === 0 ||
+                (!service.rows[0].is_active &&
+                    currentRows.get(String(row.appointment_pet_id)) !== String(row.service_id))) {
+                await client.query("ROLLBACK");
+                res.status(400).json({ message: "Choose pets belonging to this customer and active services" });
+                return;
+            }
+        }
+
+        await client.query(
+            `UPDATE appointment SET appointment_date = $1, start_time = $2,
+             remark = $3, updated_at = CURRENT_TIMESTAMP WHERE appointment_id = $4`,
+            [appointment_date, start_time, remark?.trim() || null, id],
+        );
+        for (const row of rows) {
+            if (row.appointment_pet_id != null) {
+                await client.query(
+                    `UPDATE appointment_pet SET pet_id = $1, service_id = $2, remark = $3
+                     WHERE appointment_pet_id = $4 AND appointment_id = $5`,
+                    [row.pet_id, row.service_id, row.remark?.trim() || null, row.appointment_pet_id, id],
+                );
+            } else {
+                const inserted = await client.query(
+                    `INSERT INTO appointment_pet (appointment_id, pet_id, service_id, remark)
+                     VALUES ($1, $2, $3, $4) RETURNING appointment_pet_id`,
+                    [id, row.pet_id, row.service_id, row.remark?.trim() || null],
+                );
+                keptIds.push(String(inserted.rows[0].appointment_pet_id));
+            }
+        }
+        await client.query(
+            "DELETE FROM appointment_pet WHERE appointment_id = $1 AND NOT (appointment_pet_id = ANY($2::bigint[]))",
+            [id, keptIds],
+        );
+        await client.query("COMMIT");
+        res.json({ message: "Appointment updated", appointment_id: id });
+    } catch (error) {
+        await client.query("ROLLBACK");
+        console.error("Error editing appointment:", error);
+        res.status(500).json({ message: "Failed to update appointment" });
+    } finally {
+        client.release();
+    }
+}
+
+export async function cancelAppointment(req: Request, res: Response): Promise<void> {
+    const id = req.params.id;
+    if (!isId(id)) {
+        res.status(400).json({ message: "Invalid appointment ID" });
+        return;
+    }
+    try {
+        const result = await pool.query(
+            `UPDATE appointment SET status = 'CANCELLED', updated_at = CURRENT_TIMESTAMP
+             WHERE appointment_id = $1 AND status IN ('PENDING', 'CONFIRMED')
+             RETURNING appointment_id`,
+            [id],
+        );
+        if (result.rowCount === 1) {
+            res.json({ message: "Appointment cancelled", appointment_id: id });
+            return;
+        }
+        const found = await pool.query("SELECT status FROM appointment WHERE appointment_id = $1", [id]);
+        res.status(found.rowCount === 0 ? 404 : 409).json({
+            message: found.rowCount === 0 ? "Appointment not found" : "Only pending or confirmed appointments can be cancelled",
+        });
+    } catch (error) {
+        console.error("Error cancelling appointment:", error);
+        res.status(500).json({ message: "Failed to cancel appointment" });
     }
 }

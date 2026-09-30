@@ -3,16 +3,19 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import AppointmentCalendar from "../components/calendar/AppointmentCalendar";
 import AppointmentDetailSheet from "../components/appointments/AppointmentDetailSheet";
 import CompleteAppointmentForm from "../components/appointments/CompleteAppointmentForm";
+import EditAppointmentSheet from "../components/appointments/EditAppointmentSheet";
 import DayAppointmentsSheet from "../components/sheets/DayAppointmentsSheet";
 import NewAppointmentSheet from "../components/sheets/NewAppointmentSheet";
-import { getAppointments } from "../services/appointmentService";
+import { cancelAppointment, getAppointments } from "../services/appointmentService";
 import type { Appointment } from "../types/appointment";
 
 function CalendarPage() {
     const [appointments, setAppointments] = useState<Appointment[]>([]);
     const [selectedDate, setSelectedDate] = useState<string | null>(null);
     const [selectedAppointmentId, setSelectedAppointmentId] = useState<string | null>(null);
-    const [activeSheet, setActiveSheet] = useState<"day" | "detail" | "complete" | "new">("day");
+    const [activeSheet, setActiveSheet] = useState<"day" | "detail" | "complete" | "edit" | "new">("day");
+    const [cancelling, setCancelling] = useState(false);
+    const [actionError, setActionError] = useState("");
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
     const [refreshError, setRefreshError] = useState("");
@@ -71,6 +74,28 @@ function CalendarPage() {
         setActiveSheet("day");
     }
 
+    async function editAndRefresh(date: string) {
+        await refreshAppointments();
+        setSelectedDate(date);
+        setActiveSheet("detail");
+    }
+
+    async function confirmCancel() {
+        if (!selectedAppointment || !window.confirm("Cancel this appointment? It will remain in history.")) return;
+        setCancelling(true);
+        setActionError("");
+        try {
+            await cancelAppointment(selectedAppointment.appointment_id);
+            await refreshAppointments();
+            setActiveSheet("day");
+        } catch (failure) {
+            console.error(failure);
+            setActionError("Could not cancel the appointment. Please try again.");
+        } finally {
+            setCancelling(false);
+        }
+    }
+
     return (
         <>
             <header className="page-header">
@@ -113,7 +138,13 @@ function CalendarPage() {
             )}
             {selectedAppointment && activeSheet === "detail" && (
                 <AppointmentDetailSheet appointment={selectedAppointment} onClose={() => setActiveSheet("day")}
-                    onComplete={() => setActiveSheet("complete")} />
+                    onComplete={() => setActiveSheet("complete")} onEdit={() => setActiveSheet("edit")}
+                    onCancel={confirmCancel} busy={cancelling} />
+            )}
+            {selectedAppointment && activeSheet === "detail" && actionError && <p className="floating-error" role="alert">{actionError}</p>}
+            {selectedAppointment && activeSheet === "edit" && (
+                <EditAppointmentSheet appointment={selectedAppointment} onClose={() => setActiveSheet("detail")}
+                    onSuccess={editAndRefresh} />
             )}
             {selectedAppointment && activeSheet === "complete" && (
                 <CompleteAppointmentForm appointment={selectedAppointment} onClose={() => setActiveSheet("detail")}

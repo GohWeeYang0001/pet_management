@@ -13,6 +13,18 @@ export interface CompletionInput {
     pets: Array<{ appointment_pet_id: number; amount: number; remark: string | null }>;
 }
 
+export interface EditAppointmentInput {
+    appointment_date: string;
+    start_time: string;
+    remark: string | null;
+    pets: Array<{
+        appointment_pet_id?: number;
+        pet_id: string;
+        service_id: string;
+        remark: string | null;
+    }>;
+}
+
 export async function getAppointments(): Promise<Appointment[]> {
     const response = await fetch(`${API_BASE_URL}/api/appointments`);
 
@@ -32,5 +44,19 @@ export async function completeAppointment(id: string, input: CompletionInput): P
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(input),
+    }));
+}
+
+export async function editAppointment(id: string, input: EditAppointmentInput): Promise<void> {
+    await readResponse(await fetch(`${API_BASE_URL}/api/appointments/${encodeURIComponent(id)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(input),
+    }));
+}
+
+export async function cancelAppointment(id: string): Promise<void> {
+    await readResponse(await fetch(`${API_BASE_URL}/api/appointments/${encodeURIComponent(id)}/cancel`, {
+        method: "PATCH",
     }));
 }
