@@ -80,6 +80,8 @@ button:focus-visible, [role="button"]:focus-visible { outline: 3px solid rgba(37
 
 .calendar-state { display: flex; min-height: 360px; align-items: center; justify-content: center; padding: 24px; color: #667085; text-align: center; }
 .calendar-state.error { color: #b42318; }
+.refresh-notice { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 12px 12px; padding: 11px 12px; border-radius: 12px; color: #93370d; background: #fffaeb; font-size: .84rem; line-height: 1.4; }
+.refresh-notice button { min-width: 58px; min-height: 44px; border: 0; color: #175cd3; background: transparent; font-weight: 750; cursor: pointer; }
 
 .fc {
     --fc-border-color: #eaecf0;
@@ -164,7 +166,7 @@ button:focus-visible, [role="button"]:focus-visible { outline: 3px solid rgba(37
 .sheet-close { display: grid; width: 44px; height: 44px; flex: 0 0 auto; place-items: center; border: 0; border-radius: 50%; color: #475467; background: #f2f4f7; font-size: 1.55rem; line-height: 1; cursor: pointer; }
 
 .appointment-list { display: grid; gap: 10px; }
-.appointment-card { position: relative; padding: 14px 42px 14px 15px; border: 1px solid #eaecf0; border-left: 4px solid #98a2b3; border-radius: 14px; background: #fff; box-shadow: 0 2px 8px rgba(16, 24, 40, .04); }
+.appointment-card { display: block; width: 100%; position: relative; padding: 14px 42px 14px 15px; border: 1px solid #eaecf0; border-left: 4px solid #98a2b3; border-radius: 14px; background: #fff; box-shadow: 0 2px 8px rgba(16, 24, 40, .04); text-align: left; cursor: pointer; }
 .appointment-card.status-pending { border-left-color: #f79009; }
 .appointment-card.status-confirmed { border-left-color: #2e90fa; }
 .appointment-card.status-completed { border-left-color: #12b76a; }
@@ -180,6 +182,31 @@ button:focus-visible, [role="button"]:focus-visible { outline: 3px solid rgba(37
 .empty-appointments { padding: 28px 12px; color: #667085; text-align: center; }
 .add-appointment-button { width: 100%; min-height: 48px; margin-top: 16px; border: 1px dashed #84adff; border-radius: 12px; color: #175cd3; background: #eff6ff; font-weight: 750; }
 .add-appointment-button:disabled { cursor: not-allowed; opacity: .68; }
+
+.sheet-form { display: grid; gap: 14px; }
+.appointment-fields { display: grid; gap: 14px; }
+.form-card, .detail-pet, .detail-summary { min-width: 0; margin: 0; padding: 15px; border: 1px solid #eaecf0; border-radius: 14px; background: #fff; }
+.form-card { display: grid; gap: 12px; }
+fieldset.form-card { padding: 15px; }
+.form-card legend { padding: 0 5px; color: #344054; font-weight: 750; }
+.form-card h3, .detail-pet h3, .detail-summary h3 { margin: 0; font-size: 1rem; color: #17212b; }
+.form-card-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.sheet-form label { display: grid; gap: 6px; color: #344054; font-size: .84rem; font-weight: 700; }
+.sheet-form input, .sheet-form select, .sheet-form textarea { display: block; width: 100%; min-width: 0; min-height: 44px; padding: 9px 11px; border: 1px solid #d0d5dd; border-radius: 10px; color: #1f2933; background: #fff; font-size: 1rem; font-weight: 400; }
+.sheet-form textarea { resize: vertical; }
+.sheet-form input[readonly] { background: #f9fafb; color: #475467; }
+.form-hint { margin: 0; color: #667085; font-size: .84rem; line-height: 1.4; }
+.form-error { margin: 0; padding: 10px 12px; border-radius: 10px; color: #b42318; background: #fef3f2; font-size: .85rem; line-height: 1.4; }
+.primary-button, .secondary-button { display: block; width: 100%; min-height: 48px; padding: 10px 14px; border-radius: 11px; font-weight: 750; cursor: pointer; }
+.primary-button { border: 1px solid #175cd3; color: #fff; background: #175cd3; }
+.secondary-button { margin-top: 9px; border: 1px solid #d0d5dd; color: #344054; background: #fff; }
+.primary-button:disabled, .secondary-button:disabled { opacity: .55; cursor: not-allowed; }
+.text-button { min-height: 44px; padding: 8px 0; border: 0; color: #175cd3; background: transparent; font-size: .86rem; font-weight: 750; text-align: left; cursor: pointer; }
+.detail-summary { margin-bottom: 12px; }
+.detail-summary p, .detail-pet p { margin: 8px 0 0; color: #475467; font-size: .88rem; line-height: 1.4; }
+.detail-summary a { display: inline-block; margin-top: 6px; color: #175cd3; }
+.detail-pets { display: grid; gap: 10px; margin-bottom: 16px; }
+.inline-create { background: #f9fafb; }
 
 @keyframes sheet-in { from { transform: translateY(100%); } to { transform: translateY(0); } }
 @keyframes backdrop-in { from { opacity: 0; } to { opacity: 1; } }

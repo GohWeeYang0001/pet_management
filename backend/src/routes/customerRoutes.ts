@@ -7,10 +7,12 @@ import {
     updateCustomer,
     deleteCustomer
 } from "../controllers/customerController";
+import petRoutes from "./petRoutes";
 
 const router = Router();
 
 router.get("/", getCustomers);
+router.use("/:customerId/pets", petRoutes);
 
 router.get("/:id", getCustomerById);
 

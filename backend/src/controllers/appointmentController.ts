@@ -205,3 +205,100 @@ export async function getAppointments(
         });
     }
 }
+
+interface CompletionPet {
+    appointment_pet_id: number;
+    amount: number;
+    remark?: string | null;
+}
+
+export async function completeAppointment(req: Request, res: Response): Promise<void> {
+    const { id } = req.params;
+    const pets: unknown = req.body?.pets;
+
+    if (!/^\d+$/.test(String(id)) || !Array.isArray(pets) || pets.length === 0) {
+        res.status(400).json({ message: "A valid appointment and at least one pet are required" });
+        return;
+    }
+
+    const validPets = pets.every((pet: unknown) => {
+        if (typeof pet !== "object" || pet === null) return false;
+        const entry = pet as Partial<CompletionPet>;
+        return Number.isSafeInteger(entry.appointment_pet_id) &&
+            Number(entry.appointment_pet_id) > 0 &&
+            typeof entry.amount === "number" &&
+            Number.isFinite(entry.amount) &&
+            entry.amount >= 0 &&
+            entry.amount <= 99999999.99 &&
+            /^(?:0|[1-9]\d*)(?:\.\d{1,2})?$/.test(String(entry.amount)) &&
+            (entry.remark === undefined || entry.remark === null || typeof entry.remark === "string");
+    });
+
+    if (!validPets) {
+        res.status(400).json({ message: "Each pet needs a valid ID and a non-negative amount with at most two decimal places" });
+        return;
+    }
+
+    const completionPets = pets as CompletionPet[];
+    if (new Set(completionPets.map((pet) => pet.appointment_pet_id)).size !== completionPets.length) {
+        res.status(400).json({ message: "Each appointment pet may only be included once" });
+        return;
+    }
+
+    let client;
+    try {
+        client = await pool.connect();
+        await client.query("BEGIN");
+
+        const appointmentResult = await client.query(
+            "SELECT status FROM appointment WHERE appointment_id = $1 FOR UPDATE",
+            [id],
+        );
+        if (appointmentResult.rows.length === 0) {
+            await client.query("ROLLBACK");
+            res.status(404).json({ message: "Appointment not found" });
+            return;
+        }
+        if (appointmentResult.rows[0].status === "CANCELLED") {
+            await client.query("ROLLBACK");
+            res.status(409).json({ message: "Cancelled appointments cannot be completed" });
+            return;
+        }
+
+        const petResult = await client.query(
+            "SELECT appointment_pet_id FROM appointment_pet WHERE appointment_id = $1 FOR UPDATE",
+            [id],
+        );
+        const existingIds = new Set(petResult.rows.map((row: { appointment_pet_id: string }) => String(row.appointment_pet_id)));
+        if (completionPets.length !== existingIds.size ||
+            completionPets.some((pet) => !existingIds.has(String(pet.appointment_pet_id)))) {
+            await client.query("ROLLBACK");
+            res.status(400).json({ message: "Amounts are required for every pet in this appointment" });
+            return;
+        }
+
+        for (const pet of completionPets) {
+            await client.query(
+                `UPDATE appointment_pet
+                 SET amount = $1, remark = $2
+                 WHERE appointment_pet_id = $3 AND appointment_id = $4`,
+                [pet.amount, pet.remark ?? null, pet.appointment_pet_id, id],
+            );
+        }
+
+        await client.query(
+            `UPDATE appointment
+             SET status = 'COMPLETED', updated_at = CURRENT_TIMESTAMP
+             WHERE appointment_id = $1`,
+            [id],
+        );
+        await client.query("COMMIT");
+        res.json({ message: "Appointment completed successfully", appointment_id: id });
+    } catch (error) {
+        if (client) await client.query("ROLLBACK");
+        console.error("Error completing appointment:", error);
+        res.status(500).json({ message: "Failed to complete appointment" });
+    } finally {
+        client?.release();
+    }
+}

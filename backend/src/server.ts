@@ -3,6 +3,7 @@ import cors from "cors";
 
 import customerRoutes from "./routes/customerRoutes";
 import appointmentRoutes from "./routes/appointmentRoutes";
+import serviceRoutes from "./routes/serviceRoutes";
 
 
 const app = express();
@@ -19,6 +20,7 @@ app.get("/api/test", (req, res) => {
 app.use("/api/customers", customerRoutes);
 
 app.use("/api/appointments", appointmentRoutes);
+app.use("/api/services", serviceRoutes);
 
 const PORT = 3000;
 
