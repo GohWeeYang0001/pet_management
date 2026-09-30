@@ -1,12 +1,12 @@
 import type { Pet } from "../types/pet";
-import { API_BASE_URL, readResponse } from "./api";
+import { API_BASE_URL, apiFetch, readResponse } from "./api";
 
 function petsUrl(customerId: string): string {
     return `${API_BASE_URL}/api/customers/${encodeURIComponent(customerId)}/pets`;
 }
 
 export async function getCustomerPets(customerId: string): Promise<Pet[]> {
-    return readResponse<Pet[]>(await fetch(petsUrl(customerId)));
+    return readResponse<Pet[]>(await apiFetch(petsUrl(customerId)));
 }
 
 export async function createPet(
@@ -15,7 +15,7 @@ export async function createPet(
     pet_type: string,
     pet_remark: string,
 ): Promise<Pet> {
-    return readResponse<Pet>(await fetch(petsUrl(customerId), {
+    return readResponse<Pet>(await apiFetch(petsUrl(customerId), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ pet_name, pet_type, pet_remark }),
@@ -29,7 +29,7 @@ export async function updatePet(
     pet_type: string,
     pet_remark: string,
 ): Promise<Pet> {
-    return readResponse<Pet>(await fetch(`${petsUrl(customerId)}/${encodeURIComponent(petId)}`, {
+    return readResponse<Pet>(await apiFetch(`${petsUrl(customerId)}/${encodeURIComponent(petId)}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ pet_name, pet_type, pet_remark }),

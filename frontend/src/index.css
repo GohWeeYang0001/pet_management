@@ -253,3 +253,9 @@ fieldset.form-card { padding: 15px; }
 .pet-management-row strong { color: #17212b; }
 .pet-management-row p { margin: 3px 0 0; color: #667085; font-size: .84rem; line-height: 1.35; }
 .pet-management-row .text-button { padding: 0 5px; flex: 0 0 auto; }
+.login-page { display: grid; align-content: center; gap: 25px; min-height: 100dvh; padding: 28px 20px; }
+.login-page header .form-hint { margin-top: 10px; }
+.login-card { padding: 22px; border: 1px solid #eaecf0; border-radius: 18px; background: #fff; box-shadow: 0 4px 18px rgba(16,24,40,.05); }
+.auth-state { display: grid; gap: 16px; align-content: center; min-height: 100dvh; padding: 30px; text-align: center; }
+.account-card { padding: 15px; border: 1px solid #eaecf0; border-radius: 14px; background: #fff; }
+.account-card p { margin: 0 0 6px; overflow-wrap: anywhere; }
