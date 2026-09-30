@@ -2,7 +2,7 @@ import { randomBytes } from "node:crypto";
 import { pool } from "../src/db";
 import { hashPassword } from "../src/auth/password";
 
-export const baseUrl = "http://localhost:3000";
+export const baseUrl = `http://localhost:${process.env.PORT ?? 3000}`;
 export const requestHeader = { "X-Pet-Management-Request": "1" };
 
 export async function createTestUser(active = true, role: "ADMIN" | "EMPLOYEE" = "ADMIN") {

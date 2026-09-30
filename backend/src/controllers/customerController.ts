@@ -1,3 +1,4 @@
+import { logServerError } from "../logging";
 import { Request, Response } from "express";
 import { pool } from "../db";
 import { isId } from "../validation";
@@ -22,7 +23,7 @@ export async function getCustomers(
 
         res.json(result.rows);
     } catch (error) {
-        console.error("Error fetching customers:", error);
+        logServerError("Error fetching customers:", error);
 
         res.status(500).json({
             message: "Internal server error"
@@ -59,7 +60,7 @@ export async function getCustomerById(
 
         res.json(result.rows[0]);
     } catch (error) {
-        console.error("Error fetching customer:", error);
+        logServerError("Error fetching customer:", error);
 
         res.status(500).json({
             message: "Internal server error"
@@ -99,7 +100,7 @@ export async function createCustomer(
 
         res.status(201).json(result.rows[0]);
     } catch (error) {
-        console.error("Error creating customer:", error);
+        logServerError("Error creating customer:", error);
 
         res.status(500).json({
             message: "Internal server error"
@@ -147,7 +148,7 @@ export async function updateCustomer(
 
         res.json(result.rows[0]);
     } catch (error) {
-        console.error("Error updating customer:", error);
+        logServerError("Error updating customer:", error);
 
         res.status(500).json({
             message: "Internal server error"
@@ -186,7 +187,7 @@ export async function deleteCustomer(
             customer: result.rows[0]
         });
     } catch (error) {
-        console.error("Error deleting customer:", error);
+        logServerError("Error deleting customer:", error);
 
         res.status(500).json({
             message: "Internal server error"
@@ -254,7 +255,7 @@ export async function getCustomerOverview(req: Request, res: Response): Promise<
             appointment_history: history.rows.map((row) => ({ ...row, amount: Number(row.amount) })),
         });
     } catch (error) {
-        console.error("Error fetching customer overview:", error);
+        logServerError("Error fetching customer overview:", error);
         res.status(500).json({ message: "Failed to load customer overview" });
     }
 }

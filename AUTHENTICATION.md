@@ -32,8 +32,9 @@ Migration `database/migrations/003_add_app_user.sql` creates `app_user` and
 key and indexes for user/expiry lookup. It contains no user credentials and does
 not change business tables. It has already been applied to this local database.
 For another existing database, execute that migration once after 001 and 002.
-For a fresh database use `database/schema.sql` and the existing business-table
-setup; do not apply 003 twice after bootstrapping its auth tables.
+For a fresh production database follow the single bootstrap procedure in
+`AWS_DEPLOYMENT.md`: schema.sql then migration 001 only. The current schema
+already includes 002/003; do not apply those again after that bootstrap.
 
 Run backend commands from `C:\htdocs\pet_management\backend`:
 
@@ -68,7 +69,8 @@ The frontend defaults to same-origin `/api`, with a Vite dev proxy to port 3000.
 An explicit `VITE_API_BASE_URL` may be used for a same-site API origin. Serve the
 frontend and API on the same site in production; unrelated domains are not
 supported by the SameSite=Lax session design. Allowlist the frontend origin on
-Express when using different origins. HTTPS/proxy deployment is a later task.
+Express when using different origins. Production proxy, TLS and packaging
+requirements are documented in `AWS_DEPLOYMENT.md`; no deployment has been done.
 
 ## API and browser behavior
 

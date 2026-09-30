@@ -1,7 +1,5 @@
 import { pool } from "../src/db";
-import { createTestUser, loginTestUser, withSession } from "./authFixture";
-
-const baseUrl = "http://localhost:3000";
+import { baseUrl, createTestUser, loginTestUser, withSession } from "./authFixture";
 const marker = `Codex workflow QA ${Date.now()}`;
 let customerId: string | null = null;
 let otherCustomerId: string | null = null;

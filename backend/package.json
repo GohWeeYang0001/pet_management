@@ -4,15 +4,20 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "build": "tsc && tsc -p tsconfig.build-tools.json",
+    "start": "node dist/server.js",
     "dev": "tsx watch src/server.ts",
     "setup-auth": "tsx scripts/setupAuth.ts",
     "create-user": "tsx scripts/createUser.ts",
+    "create-user:production": "node dist-tools/scripts/createUser.js",
+    "test:deployment": "tsx tests/deploymentSmoke.ts",
     "test:auth": "tsx tests/authSmoke.ts",
     "test:workflow": "tsx tests/workflowSmoke.ts",
     "typecheck": "tsc --noEmit",
     "typecheck:tools": "tsc --noEmit -p tsconfig.tools.json"
   },
   "keywords": [],
+  "engines": { "node": ">=22" },
   "author": "",
   "license": "ISC",
   "dependencies": {

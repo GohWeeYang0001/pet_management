@@ -1,3 +1,4 @@
+import { logServerError } from "../logging";
 import { Request, Response } from "express";
 import { pool } from "../db";
 import { isMonth } from "../validation";
@@ -46,7 +47,7 @@ export async function getMonthlyReport(req: Request, res: Response): Promise<voi
             daily,
         });
     } catch (error) {
-        console.error("Error creating monthly report:", error);
+        logServerError("Error creating monthly report:", error);
         res.status(500).json({ message: "Failed to load monthly report" });
     }
 }

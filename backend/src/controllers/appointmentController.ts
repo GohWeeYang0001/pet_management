@@ -1,3 +1,4 @@
+import { logServerError } from "../logging";
 import { Request, Response } from "express";
 import { pool } from "../db";
 import { isDateOnly, isId, isOptionalText, isTime } from "../validation";
@@ -138,7 +139,7 @@ export async function createAppointment(
 
         await client.query("ROLLBACK");
 
-        console.error("Error creating appointment:", error);
+        logServerError("Error creating appointment:", error);
 
         res.status(500).json({
             message: "Failed to create appointment"
@@ -216,7 +217,7 @@ export async function getAppointments(
 
     } catch (error) {
 
-        console.error("Error fetching appointments:", error);
+        logServerError("Error fetching appointments:", error);
 
         res.status(500).json({
             message: "Internal server error"
@@ -314,7 +315,7 @@ export async function completeAppointment(req: Request, res: Response): Promise<
         res.json({ message: "Appointment completed successfully", appointment_id: id });
     } catch (error) {
         if (client) await client.query("ROLLBACK");
-        console.error("Error completing appointment:", error);
+        logServerError("Error completing appointment:", error);
         res.status(500).json({ message: "Failed to complete appointment" });
     } finally {
         client?.release();
@@ -430,7 +431,7 @@ export async function editAppointment(req: Request, res: Response): Promise<void
         res.json({ message: "Appointment updated", appointment_id: id });
     } catch (error) {
         await client.query("ROLLBACK");
-        console.error("Error editing appointment:", error);
+        logServerError("Error editing appointment:", error);
         res.status(500).json({ message: "Failed to update appointment" });
     } finally {
         client.release();
@@ -459,7 +460,7 @@ export async function cancelAppointment(req: Request, res: Response): Promise<vo
             message: found.rowCount === 0 ? "Appointment not found" : "Only confirmed appointments can be cancelled",
         });
     } catch (error) {
-        console.error("Error cancelling appointment:", error);
+        logServerError("Error cancelling appointment:", error);
         res.status(500).json({ message: "Failed to cancel appointment" });
     }
 }

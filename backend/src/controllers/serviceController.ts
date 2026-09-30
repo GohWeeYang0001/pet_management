@@ -1,3 +1,4 @@
+import { logServerError } from "../logging";
 import { Request, Response } from "express";
 import { pool } from "../db";
 import { isId, isMoney, isText } from "../validation";
@@ -24,7 +25,7 @@ export async function getActiveServices(req: Request, res: Response): Promise<vo
         );
         res.json(result.rows.map(serviceResponse));
     } catch (error) {
-        console.error("Error fetching services:", error);
+        logServerError("Error fetching services:", error);
         res.status(500).json({ message: "Failed to fetch services" });
     }
 }
@@ -43,7 +44,7 @@ export async function createService(req: Request, res: Response): Promise<void> 
         );
         res.status(201).json(serviceResponse(result.rows[0]));
     } catch (error) {
-        console.error("Error creating service:", error);
+        logServerError("Error creating service:", error);
         res.status(500).json({ message: "Failed to create service" });
     }
 }
@@ -68,7 +69,7 @@ export async function updateService(req: Request, res: Response): Promise<void> 
         }
         res.json(serviceResponse(result.rows[0]));
     } catch (error) {
-        console.error("Error updating service:", error);
+        logServerError("Error updating service:", error);
         res.status(500).json({ message: "Failed to update service" });
     }
 }

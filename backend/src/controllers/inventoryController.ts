@@ -1,3 +1,4 @@
+import { logServerError } from "../logging";
 import { Request, Response } from "express";
 import { pool } from "../db";
 import { isDateOnly, isId, isMoney, isOptionalText, isText } from "../validation";
@@ -20,7 +21,7 @@ export async function getInventory(_req: Request, res: Response): Promise<void> 
         );
         res.json(result.rows.map(itemResponse));
     } catch (error) {
-        console.error("Error fetching inventory:", error);
+        logServerError("Error fetching inventory:", error);
         res.status(500).json({ message: "Failed to load inventory" });
     }
 }
@@ -40,7 +41,7 @@ export async function createInventoryItem(req: Request, res: Response): Promise<
         );
         res.status(201).json(itemResponse(result.rows[0]));
     } catch (error) {
-        console.error("Error creating inventory item:", error);
+        logServerError("Error creating inventory item:", error);
         res.status(500).json({ message: "Failed to create inventory item" });
     }
 }
@@ -66,7 +67,7 @@ export async function updateInventoryItem(req: Request, res: Response): Promise<
         }
         res.json(itemResponse(result.rows[0]));
     } catch (error) {
-        console.error("Error updating inventory item:", error);
+        logServerError("Error updating inventory item:", error);
         res.status(500).json({ message: "Failed to update inventory item" });
     }
 }
@@ -96,7 +97,7 @@ export async function getInventoryTransactions(req: Request, res: Response): Pro
             amount: row.amount === null ? null : Number(row.amount),
         })));
     } catch (error) {
-        console.error("Error fetching inventory transactions:", error);
+        logServerError("Error fetching inventory transactions:", error);
         res.status(500).json({ message: "Failed to load stock history" });
     }
 }
@@ -147,7 +148,7 @@ export async function stockIn(req: Request, res: Response): Promise<void> {
         res.json({ item: itemResponse(updated.rows[0]), expense_id: expenseId });
     } catch (error) {
         await client.query("ROLLBACK");
-        console.error("Error stocking in:", error);
+        logServerError("Error stocking in:", error);
         res.status(500).json({ message: "Failed to restock item" });
     } finally {
         client.release();
@@ -192,7 +193,7 @@ export async function stockOut(req: Request, res: Response): Promise<void> {
         res.json({ item: itemResponse(updated.rows[0]) });
     } catch (error) {
         await client.query("ROLLBACK");
-        console.error("Error stocking out:", error);
+        logServerError("Error stocking out:", error);
         res.status(500).json({ message: "Failed to use stock" });
     } finally {
         client.release();
