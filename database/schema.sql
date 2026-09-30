@@ -32,7 +32,7 @@ CREATE TABLE appointment (
     customer_id BIGINT NOT NULL,
     appointment_date DATE NOT NULL,
     start_time TIME NOT NULL,
-    status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
+    status VARCHAR(20) NOT NULL DEFAULT 'CONFIRMED',
     remark TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -44,7 +44,6 @@ CREATE TABLE appointment (
     CONSTRAINT chk_appointment_status
         CHECK (
             status IN (
-                'PENDING',
                 'CONFIRMED',
                 'COMPLETED',
                 'CANCELLED'
