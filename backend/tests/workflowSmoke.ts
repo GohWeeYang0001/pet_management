@@ -1,4 +1,5 @@
 import { pool } from "../src/db";
+import { createTestUser, loginTestUser, withSession } from "./authFixture";
 
 const baseUrl = "http://localhost:3000";
 const marker = `Codex workflow QA ${Date.now()}`;
@@ -10,15 +11,17 @@ let expenseId: string | null = null;
 const extraExpenseIds: Array<{ id: string; itemName: string }> = [];
 let inventoryId: string | null = null;
 let serviceId: string | null = null;
+let authUser: Awaited<ReturnType<typeof createTestUser>> | null = null;
+let sessionCookie = "";
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-    const response = await fetch(`${baseUrl}${path}`, init);
+    const response = await fetch(`${baseUrl}${path}`, withSession(sessionCookie, init));
     if (!response.ok) throw new Error(`${path} returned HTTP ${response.status}`);
     return response.json() as Promise<T>;
 }
 
 async function expectStatus(path: string, init: RequestInit, status: number): Promise<void> {
-    const response = await fetch(`${baseUrl}${path}`, init);
+    const response = await fetch(`${baseUrl}${path}`, withSession(sessionCookie, init));
     if (response.status !== status) throw new Error(`${path} returned HTTP ${response.status}, expected ${status}`);
 }
 
@@ -86,6 +89,8 @@ async function cleanup(): Promise<void> {
 
 async function main(): Promise<void> {
     try {
+        authUser = await createTestUser();
+        sessionCookie = await loginTestUser(authUser);
         const services = await request<Array<{ service_id: string }>>("/api/services");
         if (services.length === 0) throw new Error("No active service is available for the QA workflow");
 
@@ -236,7 +241,8 @@ async function main(): Promise<void> {
             await cleanup();
             if (customerId) console.log("PASS: temporary QA records removed");
         } finally {
-            await pool.end();
+            try { if (authUser) await authUser.cleanup(); }
+            finally { await pool.end(); }
         }
     }
 }
