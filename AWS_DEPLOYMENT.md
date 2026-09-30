@@ -6,8 +6,8 @@ production until infrastructure, access and costs have been reviewed.
 
 ## Architecture
 
-- Browser: `https://admin.petgrooming.my` -> CloudFront -> **private S3** frontend.
-- Browser API calls: `https://api.petgrooming.my` -> HTTPS Application Load Balancer
+- Browser: `https://admin.petgroom.my` -> CloudFront -> **private S3** frontend.
+- Browser API calls: `https://api.petgroom.my` -> HTTPS Application Load Balancer
   -> Elastic Beanstalk instance nginx -> Node.js/Express.
 - Backend -> private RDS PostgreSQL over verified TLS.
 
@@ -28,7 +28,7 @@ access. Prefer a managed secret workflow supported by the selected EB platform.
 | `NODE_ENV` | `production` |
 | `PORT` | Application port supplied/configured by EB, matching nginx upstream; local default 3000 |
 | `TRUST_PROXY_HOPS` | `2` for ALB -> nginx -> Express; verify actual forwarding chain before launch |
-| `FRONTEND_ORIGIN` | `https://admin.petgrooming.my` (exact origin, no trailing slash) |
+| `FRONTEND_ORIGIN` | `https://admin.petgroom.my` (exact origin, no trailing slash) |
 | `DB_HOST` | Actual RDS PostgreSQL hostname (not a custom alias) |
 | `DB_PORT` | `5432`, unless configured otherwise |
 | `DB_USER` | Dedicated application database role |
@@ -39,7 +39,7 @@ access. Prefer a managed secret workflow supported by the selected EB platform.
 | `AUTH_SECRET` | Strong randomly generated private secret, at least 32 characters; same across backend instances |
 
 Frontend **build-time**, public configuration: set
-`VITE_API_BASE_URL=https://api.petgrooming.my` when running `npm run build`.
+`VITE_API_BASE_URL=https://api.petgroom.my` when running `npm run build`.
 Changing this later requires rebuilding/reuploading `dist/`. Never add
 `VITE_AUTH_SECRET`, `VITE_DB_PASSWORD`, or any other secret. All services use the
 shared API base/helper and requests include credentials. A trailing slash on

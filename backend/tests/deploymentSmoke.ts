@@ -1,10 +1,25 @@
 import assert from "node:assert/strict";
 import express from "express";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { serverConfiguration, databaseConfiguration } from "../src/config/runtime";
 import { logServerError } from "../src/logging";
 import { authConfig } from "../src/auth/config";
 
 async function main() {
+    // These are deployment expectations, not runtime defaults or localhost settings.
+    const productionFrontend = "https://admin.petgroom.my";
+    const productionApi = "https://api.petgroom.my";
+    const repositoryRoot = resolve(__dirname, "../..");
+    const backendExample = readFileSync(resolve(repositoryRoot, "backend/.env.example"), "utf8");
+    const frontendExample = readFileSync(resolve(repositoryRoot, "frontend/.env.example"), "utf8");
+    const deploymentDocumentation = readFileSync(resolve(repositoryRoot, "AWS_DEPLOYMENT.md"), "utf8");
+    assert.ok(backendExample.includes(`# FRONTEND_ORIGIN=${productionFrontend}`));
+    assert.ok(frontendExample.includes(`VITE_API_BASE_URL=${productionApi}`));
+    assert.ok(deploymentDocumentation.includes(`FRONTEND_ORIGIN\` | \`${productionFrontend}`));
+    assert.ok(deploymentDocumentation.includes(`VITE_API_BASE_URL=${productionApi}`));
+    assert.equal(new URL(productionFrontend).hostname, "admin.petgroom.my");
+    assert.equal(new URL(productionApi).hostname, "api.petgroom.my");
     assert.deepEqual(serverConfiguration({}), { port: 3000, trustProxy: false });
     assert.deepEqual(serverConfiguration({ NODE_ENV: "production", PORT: "8080" }), { port: 8080, trustProxy: 2 });
     assert.equal(serverConfiguration({ NODE_ENV: "development", TRUST_PROXY_HOPS: "5" }).trustProxy, false);
@@ -64,7 +79,7 @@ async function main() {
     assert.equal(malformed.status, 400);
     assert.deepEqual(await malformed.json(), { message: "Invalid request body." });
     assert.equal((await fetch(`${baseUrl}/api/customers`)).status, 401);
-    console.log("PASS: runtime port/proxy, strict TLS configuration, safe logging, public health, security headers, CORS and sanitized errors");
+    console.log("PASS: production domain examples/docs, runtime port/proxy, strict TLS configuration, safe logging, public health, security headers, CORS and sanitized errors");
 }
 
 main().catch(() => { console.error("Deployment readiness test failed. No configuration values were logged."); process.exitCode = 1; });
