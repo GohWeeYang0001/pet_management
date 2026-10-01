@@ -1,3 +1,4 @@
+import { logServerError } from "../logging";
 import { Request, Response } from "express";
 import { pool } from "../db";
 import { isId, isOptionalText, isText } from "../validation";
@@ -28,7 +29,7 @@ export async function getCustomerPets(req: Request, res: Response): Promise<void
         );
         res.json(result.rows);
     } catch (error) {
-        console.error("Error fetching customer pets:", error);
+        logServerError("Error fetching customer pets:", error);
         res.status(500).json({ message: "Failed to fetch pets" });
     }
 }
@@ -55,7 +56,7 @@ export async function createCustomerPet(req: Request, res: Response): Promise<vo
         );
         res.status(201).json(result.rows[0]);
     } catch (error) {
-        console.error("Error creating customer pet:", error);
+        logServerError("Error creating customer pet:", error);
         res.status(500).json({ message: "Failed to create pet" });
     }
 }
@@ -85,7 +86,7 @@ export async function updateCustomerPet(req: Request, res: Response): Promise<vo
         }
         res.json(result.rows[0]);
     } catch (error) {
-        console.error("Error updating customer pet:", error);
+        logServerError("Error updating customer pet:", error);
         res.status(500).json({ message: "Failed to update pet" });
     }
 }

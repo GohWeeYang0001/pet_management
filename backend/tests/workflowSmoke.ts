@@ -1,8 +1,7 @@
+import { randomUUID } from "node:crypto";
 import { pool } from "../src/db";
-import { createTestUser, loginTestUser, withSession } from "./authFixture";
-
-const baseUrl = "http://localhost:3000";
-const marker = `Codex workflow QA ${Date.now()}`;
+import { baseUrl, createTestUser, loginTestUser, withSession } from "./authFixture";
+const marker = `Codex workflow QA ${randomUUID()}`;
 let customerId: string | null = null;
 let otherCustomerId: string | null = null;
 let appointmentId: string | null = null;
@@ -53,11 +52,6 @@ async function cleanup(): Promise<void> {
             if (owned.rowCount !== 1) throw new Error("QA category expense marker did not match; cleanup stopped");
             await client.query("DELETE FROM expense WHERE expense_id = $1", [extra.id]);
         }
-        if (serviceId) {
-            const owned = await client.query("SELECT service_id FROM service WHERE service_id = $1 AND service_name = $2 FOR UPDATE", [serviceId, marker]);
-            if (owned.rowCount !== 1) throw new Error("QA service marker did not match; cleanup stopped");
-            await client.query("DELETE FROM service WHERE service_id = $1", [serviceId]);
-        }
         if (customerId) {
         const owned = await client.query(
             "SELECT customer_id FROM customer WHERE customer_id = $1 AND customer_name = $2 FOR UPDATE",
@@ -78,6 +72,13 @@ async function cleanup(): Promise<void> {
             if (owned.rowCount !== 1) throw new Error("QA second customer marker did not match; cleanup stopped");
             await client.query("DELETE FROM customer WHERE customer_id = $1", [otherCustomerId]);
         }
+        // Deleting QA appointments above cascades to appointment_pet. Remove their
+        // service only afterward, and never delete an unmarked/pre-existing service.
+        if (serviceId) {
+            const owned = await client.query("SELECT service_id FROM service WHERE service_id = $1 AND service_name = $2 FOR UPDATE", [serviceId, marker]);
+            if (owned.rowCount !== 1) throw new Error("QA service marker did not match; cleanup stopped");
+            await client.query("DELETE FROM service WHERE service_id = $1 AND service_name = $2", [serviceId, marker]);
+        }
         await client.query("COMMIT");
     } catch (error) {
         await client.query("ROLLBACK");
@@ -91,8 +92,14 @@ async function main(): Promise<void> {
     try {
         authUser = await createTestUser();
         sessionCookie = await loginTestUser(authUser);
+        const service = await request<{ service_id: string }>("/api/services", json("POST", {
+            service_name: marker, default_price: 10,
+        }));
+        serviceId = service.service_id;
         const services = await request<Array<{ service_id: string }>>("/api/services");
-        if (services.length === 0) throw new Error("No active service is available for the QA workflow");
+        if (!services.some((row) => String(row.service_id) === String(serviceId))) {
+            throw new Error("Temporary QA service was not returned as active");
+        }
 
         const customer = await request<{ customer_id: string }>("/api/customers", json("POST", {
             customer_name: marker,
@@ -125,7 +132,7 @@ async function main(): Promise<void> {
 
         await expectStatus("/api/appointments", json("POST", {
             customer_id: customerId, appointment_date: "2026-10-02", start_time: "15:00", status: "PENDING",
-            pets: [{ pet_id: petA.pet_id, service_id: services[0].service_id }],
+            pets: [{ pet_id: petA.pet_id, service_id: serviceId }],
         }), 400);
 
         const created = await request<{ appointment_id: string }>("/api/appointments", json("POST", {
@@ -134,8 +141,8 @@ async function main(): Promise<void> {
             start_time: "15:45",
             remark: "Temporary QA appointment",
             pets: [
-                { pet_id: petA.pet_id, service_id: services[0].service_id, remark: "A" },
-                { pet_id: petB.pet_id, service_id: services[0].service_id, remark: "B" },
+                { pet_id: petA.pet_id, service_id: serviceId, remark: "A" },
+                { pet_id: petB.pet_id, service_id: serviceId, remark: "B" },
             ],
         }));
         appointmentId = created.appointment_id;
@@ -155,7 +162,7 @@ async function main(): Promise<void> {
         await request(`/api/appointments/${appointmentId}`, json("PATCH", {
             appointment_date: "2026-10-03", start_time: "16:15", remark: "Edited QA appointment",
             pets: appointment.pets.map((pet) => ({ appointment_pet_id: pet.appointment_pet_id,
-                pet_id: pet.pet_id, service_id: services[0].service_id, remark: "Edited" })),
+                pet_id: pet.pet_id, service_id: serviceId, remark: "Edited" })),
         }));
         const edited = (await request<Appointment[]>("/api/appointments"))
             .find((item) => String(item.appointment_id) === String(appointmentId));
@@ -163,7 +170,7 @@ async function main(): Promise<void> {
 
         const cancelled = await request<{ appointment_id: string }>("/api/appointments", json("POST", {
             customer_id: customerId, appointment_date: "2026-10-03", start_time: "17:15", remark: "Cancel QA",
-            pets: [{ pet_id: petA.pet_id, service_id: services[0].service_id, remark: null }],
+            pets: [{ pet_id: petA.pet_id, service_id: serviceId, remark: null }],
         }));
         cancelledAppointmentId = cancelled.appointment_id;
         await request(`/api/appointments/${cancelledAppointmentId}/cancel`, { method: "PATCH" });
@@ -226,8 +233,6 @@ async function main(): Promise<void> {
         if (Math.abs((finalReport.expenses - baseline.expenses) - 235) > 0.001 ||
             Math.abs((finalReport.net - completedReport.net) + 235) > 0.001) throw new Error("Expense/net report incorrect");
 
-        const service = await request<{ service_id: string }>("/api/services", json("POST", { service_name: marker, default_price: 10 }));
-        serviceId = service.service_id;
         await request(`/api/services/${serviceId}`, json("PUT", { service_name: marker, default_price: 12, is_active: false }));
         const activeServices = await request<Array<{ service_id: string }>>("/api/services");
         if (activeServices.some((row) => String(row.service_id) === String(serviceId))) throw new Error("Inactive service returned by default");

@@ -32,8 +32,9 @@ Migration `database/migrations/003_add_app_user.sql` creates `app_user` and
 key and indexes for user/expiry lookup. It contains no user credentials and does
 not change business tables. It has already been applied to this local database.
 For another existing database, execute that migration once after 001 and 002.
-For a fresh database use `database/schema.sql` and the existing business-table
-setup; do not apply 003 twice after bootstrapping its auth tables.
+For a fresh production database follow the single bootstrap procedure in
+`AWS_DEPLOYMENT.md`: schema.sql then migration 001 only. The current schema
+already includes 002/003; do not apply those again after that bootstrap.
 
 Run backend commands from `C:\htdocs\pet_management\backend`:
 
@@ -68,7 +69,8 @@ The frontend defaults to same-origin `/api`, with a Vite dev proxy to port 3000.
 An explicit `VITE_API_BASE_URL` may be used for a same-site API origin. Serve the
 frontend and API on the same site in production; unrelated domains are not
 supported by the SameSite=Lax session design. Allowlist the frontend origin on
-Express when using different origins. HTTPS/proxy deployment is a later task.
+Express when using different origins. Production proxy, TLS and packaging
+requirements are documented in `AWS_DEPLOYMENT.md`; no deployment has been done.
 
 ## API and browser behavior
 
@@ -130,3 +132,21 @@ the smoke tests.
 Authentication tests also simulate inactivity and original-login ages to check
 30-day renewal, concurrent renewal, unchanged original login time, the 90-day
 cap, expired-session rejection, matching cookie deadlines and logout revocation.
+
+## GitHub CI
+
+`.github/workflows/ci.yml` runs automatically for pull requests targeting main
+and pushes to main or feature/**, and supports manual workflow_dispatch runs.
+Two Ubuntu jobs use Node 22: frontend npm ci/build/lint, and backend npm ci,
+typecheck, typecheck:tools, build, test:auth, test:workflow and test:deployment.
+Newer/overlapping runs for the same source repository/branch cancel older runs.
+
+The backend job initializes a temporary PostgreSQL 16 service database with
+schema.sql then migration 001 only, without seed data or migrations 002/003.
+It starts the compiled API, waits for /api/health, runs the existing tests and
+stops the API on exit. Tests clean up only their own records; the database is
+discarded with the runner. AUTH_SECRET is generated per run, masked in logs and
+passed through GitHub's temporary environment file. No production secrets,
+local PostgreSQL, RDS or AWS resources are used. npm caches are keyed by each
+project's lockfile; node_modules is not cached. Local Docker is not required.
+CI only validates: it does not deploy or upload frontend/backend build outputs.

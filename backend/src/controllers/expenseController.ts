@@ -1,3 +1,4 @@
+import { logServerError } from "../logging";
 import { Request, Response } from "express";
 import { pool } from "../db";
 import { isDateOnly, isExpenseCategory, isId, isMoney, isMonth, isOptionalText, isText } from "../validation";
@@ -31,7 +32,7 @@ export async function getExpenses(req: Request, res: Response): Promise<void> {
         );
         res.json(result.rows.map((row) => ({ ...row, amount: Number(row.amount) })));
     } catch (error) {
-        console.error("Error fetching expenses:", error);
+        logServerError("Error fetching expenses:", error);
         res.status(500).json({ message: "Failed to load expenses" });
     }
 }
@@ -50,7 +51,7 @@ export async function createExpense(req: Request, res: Response): Promise<void> 
         );
         res.status(201).json({ ...result.rows[0], amount: Number(result.rows[0].amount) });
     } catch (error) {
-        console.error("Error creating expense:", error);
+        logServerError("Error creating expense:", error);
         res.status(500).json({ message: "Failed to create expense" });
     }
 }
@@ -74,7 +75,7 @@ export async function updateExpense(req: Request, res: Response): Promise<void> 
         }
         res.json({ ...result.rows[0], amount: Number(result.rows[0].amount) });
     } catch (error) {
-        console.error("Error updating expense:", error);
+        logServerError("Error updating expense:", error);
         res.status(500).json({ message: "Failed to update expense" });
     }
 }
@@ -93,7 +94,7 @@ export async function deleteExpense(req: Request, res: Response): Promise<void> 
         }
         res.json({ message: "Expense deleted", expense_id: id });
     } catch (error) {
-        console.error("Error deleting expense:", error);
+        logServerError("Error deleting expense:", error);
         res.status(500).json({ message: "Failed to delete expense" });
     }
 }
