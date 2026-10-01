@@ -1,0 +1,145 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main, 'feature/**']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Push and PR events from the same source branch share a group. Newer/overlapping
+# runs cancel older ones, while fork repositories and unrelated branches stay separate.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.head.repo.full_name || github.repository }}-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  frontend:
+    name: Frontend validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+        shell: bash
+    env:
+      VITE_API_BASE_URL: https://api.petgroom.my
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Build static frontend
+        run: npm run build
+      - name: Lint frontend
+        run: npm run lint
+
+  backend:
+    name: Backend validation and smoke tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: backend
+        shell: bash
+    env:
+      NODE_ENV: test
+      PORT: '3000'
+      DB_HOST: 127.0.0.1
+      DB_PORT: '5432'
+      DB_USER: pet_management_ci
+      DB_PASSWORD: ci_only_password
+      DB_NAME: pet_management_ci
+      DB_SSL: 'false'
+      FRONTEND_ORIGIN: http://localhost:5173
+      PGHOST: 127.0.0.1
+      PGPORT: '5432'
+      PGUSER: pet_management_ci
+      PGPASSWORD: ci_only_password
+      PGDATABASE: pet_management_ci
+      PGSSLMODE: disable
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: pet_management_ci
+          POSTGRES_PASSWORD: ci_only_password
+          POSTGRES_DB: pet_management_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U pet_management_ci -d pet_management_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Type-check application and test tools
+        run: |
+          npm run typecheck
+          npm run typecheck:tools
+      - name: Compile production artifacts
+        run: npm run build
+      - name: Generate temporary authentication secret
+        run: |
+          node <<'NODE'
+          const { randomBytes } = require('node:crypto');
+          const { appendFileSync } = require('node:fs');
+          const secret = randomBytes(48).toString('hex');
+          console.log(`::add-mask::${secret}`);
+          appendFileSync(process.env.GITHUB_ENV, `AUTH_SECRET=${secret}\n`);
+          NODE
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install --yes postgresql-client
+      - name: Initialize empty CI database
+        run: |
+          psql -X --no-password --set=ON_ERROR_STOP=1 --single-transaction --file=../database/schema.sql
+          psql -X --no-password --set=ON_ERROR_STOP=1 --file=../database/migrations/001_add_expenses_inventory.sql
+      - name: Start compiled API and run smoke tests
+        run: |
+          # This is the compiled entry point used by npm start. Launch Node directly
+          # so the exit trap owns the actual server PID rather than an npm wrapper.
+          node dist/server.js > "$RUNNER_TEMP/pet-management-backend.log" 2>&1 &
+          server_pid=$!
+          trap 'if kill -0 "$server_pid" 2>/dev/null; then kill "$server_pid"; fi' EXIT
+
+          ready=false
+          for attempt in {1..60}; do
+            if ! kill -0 "$server_pid" 2>/dev/null; then
+              echo "Backend exited before becoming healthy."
+              exit 1
+            fi
+            if curl --fail --silent --max-time 2 http://localhost:3000/api/health > /dev/null; then
+              ready=true
+              break
+            fi
+            sleep 1
+          done
+          if [ "$ready" != true ]; then
+            echo "Backend health check timed out."
+            exit 1
+          fi
+
+          npm run test:auth
+          npm run test:workflow
+          npm run test:deployment

@@ -132,3 +132,21 @@ the smoke tests.
 Authentication tests also simulate inactivity and original-login ages to check
 30-day renewal, concurrent renewal, unchanged original login time, the 90-day
 cap, expired-session rejection, matching cookie deadlines and logout revocation.
+
+## GitHub CI
+
+`.github/workflows/ci.yml` runs automatically for pull requests targeting main
+and pushes to main or feature/**, and supports manual workflow_dispatch runs.
+Two Ubuntu jobs use Node 22: frontend npm ci/build/lint, and backend npm ci,
+typecheck, typecheck:tools, build, test:auth, test:workflow and test:deployment.
+Newer/overlapping runs for the same source repository/branch cancel older runs.
+
+The backend job initializes a temporary PostgreSQL 16 service database with
+schema.sql then migration 001 only, without seed data or migrations 002/003.
+It starts the compiled API, waits for /api/health, runs the existing tests and
+stops the API on exit. Tests clean up only their own records; the database is
+discarded with the runner. AUTH_SECRET is generated per run, masked in logs and
+passed through GitHub's temporary environment file. No production secrets,
+local PostgreSQL, RDS or AWS resources are used. npm caches are keyed by each
+project's lockfile; node_modules is not cached. Local Docker is not required.
+CI only validates: it does not deploy or upload frontend/backend build outputs.
