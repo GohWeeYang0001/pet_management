@@ -58,7 +58,7 @@ export default function EditAppointmentSheet({ appointment, onClose, onSuccess }
 
     return <BottomSheet title="Edit Appointment" subtitle={appointment.customer_name} onClose={onClose}>
         {loading ? <p className="form-hint">Loading form...</p> : <div className="sheet-form">
-            <div className="form-card">
+            <div className="form-card appointment-time-fields">
                 <label>Date<input type="date" value={date} onChange={(event) => setDate(event.target.value)} required /></label>
                 <label>Time<input type="time" value={time} onChange={(event) => setTime(event.target.value)} required /></label>
                 <p className="form-hint">Customer: {appointment.customer_name}</p>

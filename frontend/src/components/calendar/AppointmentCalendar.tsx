@@ -1,13 +1,13 @@
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
-import interactionPlugin from "@fullcalendar/interaction";
 import type { DayCellContentArg, EventInput } from "@fullcalendar/core";
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef, type MouseEvent, type KeyboardEvent } from "react";
 
 import type { Appointment, AppointmentStatus } from "../../types/appointment";
 
 interface AppointmentCalendarProps {
     appointments: Appointment[];
+    selectedDate: string | null;
     onDateSelect: (date: string) => void;
 }
 
@@ -21,7 +21,29 @@ function toLocalDateKey(date: Date) {
 
 const statusOrder: AppointmentStatus[] = ["CONFIRMED", "COMPLETED", "CANCELLED"];
 
-function AppointmentCalendar({ appointments, onDateSelect }: AppointmentCalendarProps) {
+function AppointmentCalendar({ appointments, selectedDate, onDateSelect }: AppointmentCalendarProps) {
+    const calendarRoot = useRef<HTMLDivElement>(null);
+
+    // FullCalendar owns the focusable frames. Keep their accessible pressed state
+    // in sync with the same date that owns the sheet, without a second selection.
+    useEffect(() => {
+        calendarRoot.current?.querySelectorAll<HTMLElement>(".fc-daygrid-day[data-date]").forEach((cell) => {
+            cell.querySelector(".fc-daygrid-day-frame")?.setAttribute("aria-pressed", String(cell.dataset.date === selectedDate));
+        });
+    }, [selectedDate]);
+
+    function selectDay(event: MouseEvent<HTMLDivElement> | KeyboardEvent<HTMLDivElement>) {
+        if (!(event.target instanceof Element)) return;
+        const cell = event.target.closest<HTMLElement>(".fc-daygrid-day[data-date]");
+        if (!cell || !event.currentTarget.contains(cell) || cell.classList.contains("fc-day-disabled")) return;
+        if ("key" in event) {
+            if (event.key !== "Enter" && event.key !== " ") return;
+            if (!event.target.classList.contains("fc-daygrid-day-frame")) return;
+            event.preventDefault();
+        }
+        const date = cell.dataset.date;
+        if (date) onDateSelect(date);
+    }
     const appointmentCounts = useMemo(() => {
         const counts = new Map<string, Record<AppointmentStatus, number>>();
 
@@ -53,7 +75,7 @@ function AppointmentCalendar({ appointments, onDateSelect }: AppointmentCalendar
 
         return (
             <>
-                <span className="fc-daygrid-day-number">{arg.dayNumberText}</span>
+                <span className="calendar-day-number">{arg.dayNumberText}</span>
                 {counts && <span className="day-status-indicators">
                     {statusOrder.filter((status) => counts[status] > 0).map((status) => <span
                         className={`day-status-count status-${status.toLowerCase()}`}
@@ -66,20 +88,32 @@ function AppointmentCalendar({ appointments, onDateSelect }: AppointmentCalendar
     }
 
     return (
-        <><FullCalendar
-            plugins={[dayGridPlugin, interactionPlugin]}
+        <><div ref={calendarRoot} onClick={selectDay} onKeyDown={selectDay}><FullCalendar
+            plugins={[dayGridPlugin]}
             initialView="dayGridMonth"
             headerToolbar={{ left: "prev,next", center: "title", right: "today" }}
             events={events}
             dayCellContent={renderDayCell}
-            dateClick={(info) => onDateSelect(info.dateStr)}
+            dayCellClassNames={(arg) => toLocalDateKey(arg.date) === selectedDate ? ["calendar-day-selected"] : []}
+            // A single native click path opens after Safari's synthesized click,
+            // rather than opening on touchend before its subsequent mouse events.
+            dayCellDidMount={(arg) => {
+                const frame = arg.el.querySelector<HTMLElement>(".fc-daygrid-day-frame");
+                if (!frame || arg.el.classList.contains("fc-day-disabled")) return;
+                frame.tabIndex = 0;
+                frame.setAttribute("role", "button");
+                frame.setAttribute("aria-pressed", String(toLocalDateKey(arg.date) === selectedDate));
+                frame.setAttribute("aria-label", `View appointments for ${arg.date.toLocaleDateString(undefined, {
+                    weekday: "long", year: "numeric", month: "long", day: "numeric",
+                })}`);
+            }}
             fixedWeekCount={false}
             showNonCurrentDates
             height="auto"
             eventDisplay="none"
             dayMaxEvents={false}
             buttonText={{ today: "Today" }}
-        />
+        /></div>
         <div className="calendar-status-legend" aria-label="Appointment status legend">
             {statusOrder.map((status) => <span key={status} className={`legend-item status-${status.toLowerCase()}`}>
                 <span className="status-dot" aria-hidden="true" />{status.charAt(0) + status.slice(1).toLowerCase()}

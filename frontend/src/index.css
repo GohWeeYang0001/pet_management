@@ -1,30 +1,36 @@
 :root {
     font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     color: #1f2933;
-    background: #e9edf1;
+    background: #f7f8fa;
     font-synthesis: none;
     text-rendering: optimizeLegibility;
 }
 
 * { box-sizing: border-box; }
-html { background: #e9edf1; }
-body { min-width: 320px; margin: 0; overflow-x: hidden; }
+html, body, #root { width: 100%; margin: 0; padding: 0; background: #f7f8fa; }
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+body { min-width: 0; overflow-x: hidden; }
 button { font: inherit; }
 button:focus-visible, [role="button"]:focus-visible { outline: 3px solid rgba(37, 99, 235, 0.35); outline-offset: 2px; }
-#root { min-height: 100dvh; }
+#root { min-height: 100vh; min-height: 100dvh; }
 
 .mobile-app {
     position: relative;
     width: 100%;
-    max-width: 480px;
+    min-width: 0;
+    max-width: none;
+    min-height: 100vh;
     min-height: 100dvh;
-    margin: 0 auto;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
     overflow-x: hidden;
     background: #f7f8fa;
-    box-shadow: 0 0 30px rgba(15, 23, 42, 0.08);
+    box-shadow: none;
 }
 
-.app-content { min-height: 100dvh; padding-bottom: calc(78px + env(safe-area-inset-bottom)); }
+.app-content { min-width: 0; min-height: 100vh; min-height: 100dvh; padding: env(safe-area-inset-top) env(safe-area-inset-right) calc(78px + env(safe-area-inset-bottom)) env(safe-area-inset-left); }
 .page-header { padding: 22px 20px 14px; }
 .page-eyebrow { margin: 0 0 3px; color: #667085; font-size: .75rem; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; }
 .page-title { margin: 0; color: #17212b; font-size: 1.7rem; line-height: 1.2; letter-spacing: -.025em; }
@@ -38,10 +44,10 @@ button:focus-visible, [role="button"]:focus-visible { outline: 3px solid rgba(37
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     width: 100%;
-    max-width: 480px;
+    max-width: none;
     min-height: calc(68px + env(safe-area-inset-bottom));
-    margin: 0 auto;
-    padding: 7px 10px calc(7px + env(safe-area-inset-bottom));
+    margin: 0;
+    padding: 7px max(10px, env(safe-area-inset-right)) calc(7px + env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left));
     border-top: 1px solid #e4e7ec;
     background: rgba(255,255,255,.97);
     box-shadow: 0 -8px 24px rgba(15, 23, 42, .06);
@@ -87,6 +93,7 @@ button:focus-visible, [role="button"]:focus-visible { outline: 3px solid rgba(37
     --fc-border-color: #eaecf0;
     --fc-button-bg-color: #fff;
     --fc-button-border-color: #d0d5dd;
+    --fc-button-text-color: #344054;
     --fc-button-hover-bg-color: #f2f4f7;
     --fc-button-hover-border-color: #98a2b3;
     --fc-button-active-bg-color: #eff6ff;
@@ -99,16 +106,35 @@ button:focus-visible, [role="button"]:focus-visible { outline: 3px solid rgba(37
 .fc .fc-toolbar-title { color: #17212b; font-size: clamp(1rem, 4.4vw, 1.2rem); font-weight: 750; white-space: nowrap; }
 .fc .fc-button { min-width: 44px; min-height: 44px; padding: .45em .65em; border-radius: 10px; color: #344054; box-shadow: none !important; font-size: .78rem; font-weight: 650; text-transform: capitalize; }
 .fc .fc-button-primary:disabled { color: #98a2b3; background: #f9fafb; border-color: #eaecf0; opacity: 1; }
+/* Toolbar only: keep keyboard focus distinct from touch/pointer focus. */
+.calendar-card .fc .fc-toolbar .fc-button { -webkit-tap-highlight-color: transparent; }
+.calendar-card .fc .fc-toolbar .fc-button:focus:not(:focus-visible) { outline: none; }
+.calendar-card .fc .fc-toolbar .fc-button:focus-visible { outline: 3px solid rgba(37, 99, 235, .5); outline-offset: 2px; }
+@media (hover: none), (pointer: coarse) {
+    /* Safari can retain :hover after a tap; it must not look like a held press. */
+    .calendar-card .fc .fc-toolbar .fc-button-primary:not(:disabled):hover {
+        background-color: var(--fc-button-bg-color);
+        border-color: var(--fc-button-border-color);
+    }
+}
+.calendar-card .fc .fc-toolbar .fc-button-primary:not(:disabled):active {
+    background-color: var(--fc-button-active-bg-color);
+    border-color: var(--fc-button-active-border-color);
+}
 .fc .fc-col-header-cell-cushion { padding: 8px 2px; color: #667085; font-size: .68rem; font-weight: 750; text-transform: uppercase; }
+.fc .fc-daygrid-day { cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 .fc .fc-daygrid-day-frame { min-height: 61px; cursor: pointer; }
-.fc .fc-daygrid-day-top { flex-direction: row; }
-.fc .fc-daygrid-day-number { padding: 6px; color: #344054; font-size: .78rem; font-weight: 650; }
-.fc .fc-day-other .fc-daygrid-day-number { color: #b4bbc5; }
-.fc .fc-day-today .fc-daygrid-day-number { color: #175cd3; font-weight: 800; }
+.fc .fc-daygrid-day-top { flex-direction: row; pointer-events: none; }
+.fc .fc-daygrid-day-top > .fc-daygrid-day-number { width: 100%; min-width: 0; padding: 0; }
+.calendar-day-number { display: block; padding: 6px; color: #344054; font-size: .78rem; font-weight: 650; }
+.fc .fc-day-other .calendar-day-number { color: #b4bbc5; }
+.fc .fc-day-today .calendar-day-number { color: #175cd3; font-weight: 800; }
+.calendar-card .fc .fc-daygrid-day.calendar-day-selected { background: #eaf2ff; box-shadow: inset 0 0 0 2px #84adff; }
+.calendar-card .fc .calendar-day-selected .calendar-day-number { color: #175cd3; font-weight: 800; }
 .fc .fc-daygrid-day-events { min-height: 0; margin: 0; }
 
-.day-status-indicators { display: flex; align-items: flex-start; flex-direction: column; gap: 2px; margin: 2px 3px 0; }
-.day-status-count { display: inline-flex; min-width: 0; align-items: center; gap: 3px; padding: 2px 4px; border-radius: 6px; font-size: .65rem; font-weight: 800; line-height: 1; }
+.day-status-indicators { display: flex; min-width: 0; align-items: flex-start; flex-flow: row wrap; gap: 2px; margin: 2px 3px 0; pointer-events: none; }
+.day-status-count { display: inline-flex; flex: 0 0 auto; min-width: 0; max-width: 100%; align-items: center; gap: 3px; padding: 2px; border-radius: 6px; font-size: .65rem; font-weight: 800; line-height: 1; overflow-wrap: anywhere; }
 .day-status-count.status-confirmed { color: #175cd3; background: #eff6ff; }
 .day-status-count.status-completed { color: #067647; background: #ecfdf3; }
 .day-status-count.status-cancelled { color: #475467; background: #f2f4f7; }
@@ -141,8 +167,10 @@ button:focus-visible, [role="button"]:focus-visible { outline: 3px solid rgba(37
     position: relative;
     width: 100%;
     max-width: 480px;
+    min-width: 0;
+    max-height: 80vh;
     max-height: 80dvh;
-    padding: 10px 18px calc(18px + env(safe-area-inset-bottom));
+    padding: 10px max(18px, env(safe-area-inset-right)) calc(18px + env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left));
     overflow-y: auto;
     border-radius: 22px 22px 0 0;
     background: #fff;
@@ -173,16 +201,52 @@ button:focus-visible, [role="button"]:focus-visible { outline: 3px solid rgba(37
 .add-appointment-button { width: 100%; min-height: 48px; margin-top: 16px; border: 1px dashed #84adff; border-radius: 12px; color: #175cd3; background: #eff6ff; font-weight: 750; }
 .add-appointment-button:disabled { cursor: not-allowed; opacity: .68; }
 
-.sheet-form { display: grid; gap: 14px; }
-.appointment-fields { display: grid; gap: 14px; }
+.sheet-form { display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0; max-width: 100%; gap: 14px; }
+.appointment-fields { display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0; max-width: 100%; gap: 14px; }
 .form-card, .detail-pet, .detail-summary { min-width: 0; margin: 0; padding: 15px; border: 1px solid #eaecf0; border-radius: 14px; background: #fff; }
-.form-card { display: grid; gap: 12px; }
+.form-card { display: grid; grid-template-columns: minmax(0, 1fr); max-width: 100%; gap: 12px; }
 fieldset.form-card { padding: 15px; }
 .form-card legend { padding: 0 5px; color: #344054; font-weight: 750; }
 .form-card h3, .detail-pet h3, .detail-summary h3 { margin: 0; font-size: 1rem; color: #17212b; }
 .form-card-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.sheet-form label { display: grid; gap: 6px; color: #344054; font-size: .84rem; font-weight: 700; }
-.sheet-form input, .sheet-form select, .sheet-form textarea { display: block; width: 100%; min-width: 0; min-height: 44px; padding: 9px 11px; border: 1px solid #d0d5dd; border-radius: 10px; color: #1f2933; background: #fff; font-size: 1rem; font-weight: 400; }
+.sheet-form label { display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0; max-width: 100%; gap: 6px; color: #344054; font-size: .84rem; font-weight: 700; }
+.sheet-form input, .sheet-form select, .sheet-form textarea { display: block; width: 100%; max-width: 100%; min-width: 0; box-sizing: border-box; min-height: 44px; padding: 9px 11px; border: 1px solid #d0d5dd; border-radius: 10px; color: #1f2933; background: #fff; font-size: max(16px, 1rem); font-weight: 400; }
+/* Constrain every grid/flex item in the native date/time control's ancestor chain. */
+.bottom-sheet, .sheet-form, .appointment-fields, .form-card, .sheet-form label {
+    min-inline-size: 0;
+    box-sizing: border-box;
+}
+.sheet-form, .appointment-fields, .form-card, .sheet-form label {
+    inline-size: 100%;
+    max-inline-size: 100%;
+}
+.sheet-form > *, .appointment-fields > *, .form-card > * { min-width: 0; min-inline-size: 0; max-inline-size: 100%; }
+.sheet-header > div, .form-card-heading > * { min-width: 0; min-inline-size: 0; }
+.sheet-form input[type="time"], .sheet-form input[type="date"] {
+    /* Only remove WebKit's intrinsic control chrome, not the native picker. */
+    -webkit-appearance: none;
+    appearance: none;
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    inline-size: 100%;
+    max-inline-size: 100%;
+    min-inline-size: 0;
+    box-sizing: border-box;
+    font-family: inherit;
+}
+.sheet-form input[type="time"]::-webkit-date-and-time-value,
+.sheet-form input[type="date"]::-webkit-date-and-time-value {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    font: inherit;
+    text-align: left;
+}
+.sheet-form input[type="time"]::-webkit-datetime-edit,
+.sheet-form input[type="date"]::-webkit-datetime-edit { min-width: 0; max-width: 100%; padding: 0; font: inherit; }
 .sheet-form textarea { resize: vertical; }
 .sheet-form input[readonly] { background: #f9fafb; color: #475467; }
 .form-hint { margin: 0; color: #667085; font-size: .84rem; line-height: 1.4; }
@@ -254,8 +318,157 @@ fieldset.form-card { padding: 15px; }
 .pet-management-row p { margin: 3px 0 0; color: #667085; font-size: .84rem; line-height: 1.35; }
 .pet-management-row .text-button { padding: 0 5px; flex: 0 0 auto; }
 .login-page { display: grid; align-content: center; gap: 25px; min-height: 100dvh; padding: 28px 20px; }
+.login-page { padding-left: max(20px, env(safe-area-inset-left)); padding-right: max(20px, env(safe-area-inset-right)); }
 .login-page header .form-hint { margin-top: 10px; }
 .login-card { padding: 22px; border: 1px solid #eaecf0; border-radius: 18px; background: #fff; box-shadow: 0 4px 18px rgba(16,24,40,.05); }
 .auth-state { display: grid; gap: 16px; align-content: center; min-height: 100dvh; padding: 30px; text-align: center; }
+.auth-state { padding-left: max(30px, env(safe-area-inset-left)); padding-right: max(30px, env(safe-area-inset-right)); }
 .account-card { padding: 15px; border: 1px solid #eaecf0; border-radius: 14px; background: #fff; }
 .account-card p { margin: 0 0 6px; overflow-wrap: anywhere; }
+
+@media (max-width: 480px) {
+    :root, html, body, #root {
+        width: 100%;
+        min-width: 0;
+        max-width: 100%;
+        margin: 0;
+        padding: 0;
+        background: #f7f8fa;
+        -webkit-text-size-adjust: 100%;
+        text-size-adjust: 100%;
+    }
+    body, #root, .mobile-app { min-height: 100vh; min-height: 100dvh; }
+    .mobile-app {
+        width: 100%;
+        inline-size: 100%;
+        min-width: 0;
+        max-width: none;
+        max-inline-size: none;
+        margin: 0;
+        padding: 0;
+        border: 0;
+        border-radius: 0;
+        box-shadow: none;
+        background: #f7f8fa;
+    }
+    .app-content, .login-page, .auth-state, .business-page { min-width: 0; min-inline-size: 0; max-width: 100%; }
+    .app-content { width: 100%; max-width: none; }
+    .login-page, .auth-state, .business-page { grid-template-columns: minmax(0, 1fr); }
+    /* Only the outer shell is edge-to-edge. Keep the existing internal card
+       margins, rounded corners and page padding. */
+    .bottom-sheet { max-inline-size: 100%; }
+    /* Explicit, non-rem mobile size wins over form/search rules without !important.
+       Viewport and pinch zoom remain unrestricted. */
+    .mobile-app input, .mobile-app select, .mobile-app textarea,
+    .mobile-app .sheet-form input, .mobile-app .sheet-form select,
+    .mobile-app .sheet-form textarea, .mobile-app .search-label input {
+        font-family: inherit;
+        font-size: 16px;
+        max-width: 100%;
+        min-width: 0;
+        min-inline-size: 0;
+        box-sizing: border-box;
+    }
+    /* Replace native tap flashes only on app actions, not native form controls.
+       No hover/focus opacity: feedback always releases with :active. */
+    .mobile-app :where(button, a[href], [role="button"]) { -webkit-tap-highlight-color: transparent; }
+    .mobile-app :where(button, a[href], [role="button"]):not(.fc-button):not(.fc-daygrid-day-frame) {
+        transition: opacity 80ms ease-out;
+    }
+    .mobile-app :where(button, a[href], [role="button"]):not(.fc-button):not(.fc-daygrid-day-frame):not(:disabled):not([aria-disabled="true"]):active {
+        opacity: .82;
+    }
+    .mobile-app :where(button, a[href], [role="button"]):focus-visible {
+        outline: 3px solid rgba(37, 99, 235, .5);
+        outline-offset: 2px;
+    }
+    .calendar-card .fc .fc-daygrid-day:not(.fc-day-disabled) .fc-daygrid-day-frame:active {
+        background: #dbeafe;
+        box-shadow: inset 0 0 0 2px #60a5fa;
+    }
+    @media (prefers-reduced-motion: reduce) {
+        .mobile-app :where(button, a[href], [role="button"]):not(.fc-button):not(.fc-daygrid-day-frame) { transition: none; }
+    }
+    /* Mobile density at normal browser zoom: retain 16px controls and at least
+       44px action targets instead of scaling the application. */
+    .page-header { padding: 10px 12px 8px; }
+    .page-title { font-size: 1.375rem; }
+    .calendar-card { margin: 0 10px 12px; padding: 8px; border-radius: 14px; }
+    .fc .fc-toolbar.fc-header-toolbar { gap: 6px; margin-bottom: 8px; }
+    .fc .fc-toolbar-title { font-size: 1.0625rem; }
+    .fc .fc-col-header-cell-cushion { padding: 5px 2px; }
+    .fc .fc-daygrid-day-frame { min-height: 60px; }
+    .calendar-day-number { padding: 4px; }
+    /* FullCalendar's more-specific natural/unbalanced rules otherwise reserve
+       2em + 1em for event blocks, which this calendar deliberately hides. */
+    .calendar-card .fc .fc-daygrid-body-unbalanced .fc-daygrid-day-events,
+    .calendar-card .fc .fc-daygrid-body-natural .fc-daygrid-day-events { min-height: 0; margin: 0; }
+    .calendar-status-legend { padding-top: 8px; }
+
+    .bottom-navigation {
+        min-height: calc(52px + env(safe-area-inset-bottom));
+        padding: 4px max(8px, env(safe-area-inset-right)) calc(4px + env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
+    }
+    .nav-item { min-height: 44px; gap: 2px; padding: 3px; }
+    .nav-item svg { width: 20px; height: 20px; }
+    .app-content { padding-bottom: calc(62px + env(safe-area-inset-bottom)); }
+
+    .business-page { gap: 8px; padding: 0 12px 12px; }
+    .business-list { gap: 6px; }
+    .business-row { min-height: 56px; gap: 8px; padding: 8px 10px; border-radius: 12px; }
+    .business-row small { margin-top: 3px; font-size: .8125rem; }
+    .summary-grid { gap: 8px; }
+    .summary-card, .account-card { padding: 10px; }
+    .summary-card strong { margin-top: 4px; font-size: 1.125rem; }
+    .account-card p { margin-bottom: 4px; }
+    .daily-row { padding: 8px 10px; }
+    .daily-row small { margin-top: 3px; }
+    .bar-track { height: 4px; margin-top: 6px; }
+    .empty-state { padding: 14px 10px; }
+
+    .bottom-sheet {
+        max-height: 86vh;
+        max-height: 86dvh;
+        padding: 6px max(12px, env(safe-area-inset-right)) calc(10px + env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+        border-radius: 18px 18px 0 0;
+    }
+    .sheet-handle { margin-bottom: 6px; }
+    .sheet-header { gap: 8px; padding-bottom: 8px; }
+    .sheet-header h2 { margin-bottom: 2px; font-size: 1.0625rem; }
+    .sheet-subtitle, .form-hint { font-size: .8125rem; line-height: 1.35; }
+    .sheet-form, .appointment-fields { gap: 8px; }
+    .form-card, fieldset.form-card, .detail-pet, .detail-summary { padding: 10px; border-radius: 12px; }
+    .form-card { gap: 8px; }
+    .sheet-form label { gap: 4px; font-size: .8125rem; line-height: 1.3; }
+    .sheet-form input, .sheet-form select, .sheet-form textarea { padding: 6px 8px; }
+    /* Restore WebKit's native value-centering layout, overridden by display:block
+       above. Keep the current 44px box, 16px text and symmetric 6px block padding. */
+    .sheet-form input[type="date"], .sheet-form input[type="time"] {
+        display: inline-flex;
+        align-items: center;
+        height: 44px;
+    }
+    .form-card.appointment-time-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .appointment-time-fields > .form-hint { grid-column: 1 / -1; }
+    .sheet-form .check-label { min-height: 44px; }
+    .search-label { gap: 4px; font-size: .8125rem; }
+    .search-label input { min-height: 44px; padding: 6px 8px; }
+    .primary-button, .secondary-button, .danger-button, .add-appointment-button { min-height: 44px; padding: 6px 10px; font-size: .875rem; }
+    .secondary-button, .danger-button { margin-top: 4px; }
+    .text-button { padding-top: 4px; padding-bottom: 4px; }
+    .appointment-list { gap: 8px; }
+    .appointment-card { padding: 10px 36px 10px 10px; }
+    .appointment-customer { margin-bottom: 4px; font-size: 1rem; }
+    .empty-appointments { padding-top: 14px; padding-bottom: 14px; }
+    .add-appointment-button { margin-top: 8px; }
+    .detail-summary { margin-bottom: 8px; }
+    .detail-summary p, .detail-pet p { margin-top: 6px; font-size: .8125rem; }
+    .detail-pets { gap: 8px; margin-bottom: 8px; }
+    .pet-management-row { gap: 8px; padding: 6px 0; }
+
+    .login-page { gap: 14px; padding-left: max(12px, env(safe-area-inset-left)); padding-right: max(12px, env(safe-area-inset-right)); }
+    .login-page header .form-hint { margin-top: 6px; }
+    .login-card { padding: 12px; border-radius: 14px; }
+    .auth-state { gap: 8px; padding-left: max(16px, env(safe-area-inset-left)); padding-right: max(16px, env(safe-area-inset-right)); }
+    .login-page, .auth-state { padding-top: max(16px, env(safe-area-inset-top)); padding-bottom: max(16px, env(safe-area-inset-bottom)); }
+}
