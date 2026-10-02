@@ -1,9 +1,11 @@
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
+import zhCnLocale from "@fullcalendar/core/locales/zh-cn";
 import type { DayCellContentArg, EventInput } from "@fullcalendar/core";
 import { useEffect, useMemo, useRef, type MouseEvent, type KeyboardEvent } from "react";
 
 import type { Appointment, AppointmentStatus } from "../../types/appointment";
+import { appointmentStatusLabels } from "../../utils/displayLabels";
 
 interface AppointmentCalendarProps {
     appointments: Appointment[];
@@ -79,7 +81,7 @@ function AppointmentCalendar({ appointments, selectedDate, onDateSelect }: Appoi
                 {counts && <span className="day-status-indicators">
                     {statusOrder.filter((status) => counts[status] > 0).map((status) => <span
                         className={`day-status-count status-${status.toLowerCase()}`}
-                        aria-label={`${counts[status]} ${status.toLowerCase()} appointment${counts[status] === 1 ? "" : "s"}`}
+                        aria-label={`${counts[status]}个${appointmentStatusLabels[status]}预约`}
                         key={status}
                     ><span className="status-dot" aria-hidden="true" />{counts[status]}</span>)}
                 </span>}
@@ -90,6 +92,8 @@ function AppointmentCalendar({ appointments, selectedDate, onDateSelect }: Appoi
     return (
         <><div ref={calendarRoot} onClick={selectDay} onKeyDown={selectDay}><FullCalendar
             plugins={[dayGridPlugin]}
+            locale={zhCnLocale}
+            firstDay={0}
             initialView="dayGridMonth"
             headerToolbar={{ left: "prev,next", center: "title", right: "today" }}
             events={events}
@@ -103,20 +107,21 @@ function AppointmentCalendar({ appointments, selectedDate, onDateSelect }: Appoi
                 frame.tabIndex = 0;
                 frame.setAttribute("role", "button");
                 frame.setAttribute("aria-pressed", String(toLocalDateKey(arg.date) === selectedDate));
-                frame.setAttribute("aria-label", `View appointments for ${arg.date.toLocaleDateString(undefined, {
+                frame.setAttribute("aria-label", `查看${arg.date.toLocaleDateString("zh-CN", {
                     weekday: "long", year: "numeric", month: "long", day: "numeric",
-                })}`);
+                })}的预约`);
             }}
             fixedWeekCount={false}
             showNonCurrentDates
             height="auto"
             eventDisplay="none"
             dayMaxEvents={false}
-            buttonText={{ today: "Today" }}
+            buttonText={{ today: "今天" }}
+            buttonHints={{ prev: "上个月", next: "下个月", today: "今天" }}
         /></div>
-        <div className="calendar-status-legend" aria-label="Appointment status legend">
+        <div className="calendar-status-legend" aria-label="预约状态说明">
             {statusOrder.map((status) => <span key={status} className={`legend-item status-${status.toLowerCase()}`}>
-                <span className="status-dot" aria-hidden="true" />{status.charAt(0) + status.slice(1).toLowerCase()}
+                <span className="status-dot" aria-hidden="true" />{appointmentStatusLabels[status]}
             </span>)}
         </div></>
     );

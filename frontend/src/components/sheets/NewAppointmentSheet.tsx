@@ -7,6 +7,7 @@ import { getServices } from "../../services/serviceService";
 import type { Customer } from "../../types/customer";
 import type { Pet } from "../../types/pet";
 import type { Service } from "../../types/service";
+import { displayPetType } from "../../utils/displayLabels";
 import { formatAppointmentDate, formatMoney } from "../../utils/appointmentFormat";
 
 interface Props {
@@ -61,7 +62,7 @@ function NewAppointmentSheet({ date, onClose, onSuccess }: Props) {
             })
             .catch((loadError) => {
                 console.error(loadError);
-                if (current) setError("Could not load customers or services. Close and try again.");
+                if (current) setError("客户或服务加载失败，请关闭后重试。");
             })
             .finally(() => { if (current) setLoading(false); });
         return () => { current = false; };
@@ -76,7 +77,7 @@ function NewAppointmentSheet({ date, onClose, onSuccess }: Props) {
             .then((data) => { if (current) setPets(data); })
             .catch((loadError) => {
                 console.error(loadError);
-                if (current) setError("Could not load this customer's pets. Please try another customer.");
+                if (current) setError("此客户的宠物加载失败，请尝试选择其他客户。");
             })
             .finally(() => { if (current) setLoadingPets(false); });
         return () => { current = false; };
@@ -98,7 +99,7 @@ function NewAppointmentSheet({ date, onClose, onSuccess }: Props) {
 
     async function submitCustomer() {
         if (!customerName.trim() || !customerPhone.trim()) {
-            setCustomerError("Name and phone number are required.");
+            setCustomerError("请填写姓名和电话号码。");
             return;
         }
         setSubmitting(true);
@@ -113,7 +114,7 @@ function NewAppointmentSheet({ date, onClose, onSuccess }: Props) {
             setCustomerPhone("");
         } catch (submitError) {
             console.error(submitError);
-            setCustomerError("Could not create customer. Check the details and try again.");
+            setCustomerError("客户新增失败，请检查资料后重试。");
         } finally {
             setSubmitting(false);
         }
@@ -121,7 +122,7 @@ function NewAppointmentSheet({ date, onClose, onSuccess }: Props) {
 
     async function submitPet() {
         if (!customerId || !petName.trim()) {
-            setPetError("Pet name is required.");
+            setPetError("请填写宠物名称。");
             return;
         }
         setSubmitting(true);
@@ -143,7 +144,7 @@ function NewAppointmentSheet({ date, onClose, onSuccess }: Props) {
             setPetRemark("");
         } catch (submitError) {
             console.error(submitError);
-            setPetError("Could not create pet. Please try again.");
+            setPetError("宠物新增失败，请重试。");
         } finally {
             setSubmitting(false);
         }
@@ -152,7 +153,7 @@ function NewAppointmentSheet({ date, onClose, onSuccess }: Props) {
     async function submitAppointment() {
         if (submitting) return;
         if (!customerId || !time || petRows.length === 0 || petRows.some((row) => !row.petId || !row.serviceId)) {
-            setError("Choose a time, customer, pet and service for every row.");
+            setError("请选择时间和客户，并为每一项选择宠物和服务。");
             return;
         }
         setSubmitting(true);
@@ -172,7 +173,7 @@ function NewAppointmentSheet({ date, onClose, onSuccess }: Props) {
             await onSuccess();
         } catch (submitError) {
             console.error(submitError);
-            setError("Could not create appointment. Please check the details and try again.");
+            setError("预约新增失败，请检查资料后重试。");
         } finally {
             setSubmitting(false);
         }
@@ -184,23 +185,23 @@ function NewAppointmentSheet({ date, onClose, onSuccess }: Props) {
     const selectedCustomer = customers.find((customer) => String(customer.customer_id) === customerId);
 
     return (
-        <BottomSheet title="New Appointment" subtitle={formatAppointmentDate(date)} onClose={onClose}>
-            {loading ? <p className="form-hint">Loading form...</p> : (
+        <BottomSheet title="新增预约" subtitle={formatAppointmentDate(date)} onClose={onClose}>
+            {loading ? <p className="form-hint">表单加载中...</p> : (
                 <div className="sheet-form">
                     <div className="appointment-fields">
                         <div className="form-card appointment-time-fields">
-                            <label>Date<input type="text" value={formatAppointmentDate(date)} readOnly /></label>
-                            <label>Time<input type="time" value={time} onChange={(event) => setTime(event.target.value)} required /></label>
+                            <label>日期<input type="text" value={formatAppointmentDate(date)} readOnly /></label>
+                            <label>时间<input type="time" value={time} onChange={(event) => setTime(event.target.value)} required /></label>
                         </div>
 
                         <div className="form-card">
-                            <h3>Customer</h3>
-                            <label>Search by name or phone
-                                <input type="search" value={customerSearch} onChange={(event) => setCustomerSearch(event.target.value)} placeholder="Search customers" />
+                            <h3>客户</h3>
+                            <label>按姓名或电话号码搜索
+                                <input type="search" value={customerSearch} onChange={(event) => setCustomerSearch(event.target.value)} placeholder="搜索客户" />
                             </label>
-                            <label>Select customer
+                            <label>选择客户
                                 <select value={customerId} onChange={(event) => selectCustomer(event.target.value)} required>
-                                    <option value="">Choose customer</option>
+                                    <option value="">请选择客户</option>
                                     {selectedCustomer && !visibleCustomers.some((customer) => String(customer.customer_id) === customerId) && (
                                         <option value={customerId}>{selectedCustomer.customer_name} · {selectedCustomer.customer_hp}</option>
                                     )}
@@ -212,43 +213,43 @@ function NewAppointmentSheet({ date, onClose, onSuccess }: Props) {
                                 </select>
                             </label>
                             <button className="text-button" type="button" onClick={() => setShowCustomerForm((value) => !value)}>
-                                {showCustomerForm ? "Cancel new customer" : "+ Add New Customer"}
+                                {showCustomerForm ? "取消新增客户" : "+ 新增客户"}
                             </button>
                         </div>
 
                         {showCustomerForm && (
                             <div className="form-card inline-create">
-                                <h3>New Customer</h3>
-                                <label>Customer Name<input value={customerName} onChange={(event) => setCustomerName(event.target.value)} maxLength={100} /></label>
-                                <label>Phone Number<input type="tel" value={customerPhone} onChange={(event) => setCustomerPhone(event.target.value)} maxLength={20} /></label>
+                                <h3>新增客户</h3>
+                                <label>客户姓名<input value={customerName} onChange={(event) => setCustomerName(event.target.value)} maxLength={100} /></label>
+                                <label>电话号码<input type="tel" value={customerPhone} onChange={(event) => setCustomerPhone(event.target.value)} maxLength={20} /></label>
                                 {customerError && <p className="form-error" role="alert">{customerError}</p>}
-                                <button className="secondary-button" type="button" onClick={submitCustomer} disabled={submitting}>{submitting ? "Saving..." : "Save Customer"}</button>
+                                <button className="secondary-button" type="button" onClick={submitCustomer} disabled={submitting}>{submitting ? "保存中..." : "保存客户"}</button>
                             </div>
                         )}
 
                         {customerId && (
                             <>
-                                {loadingPets && <p className="form-hint">Loading pets...</p>}
-                                {!loadingPets && pets.length === 0 && <p className="form-hint">No pets yet. Add a pet for this customer.</p>}
+                                {loadingPets && <p className="form-hint">宠物加载中...</p>}
+                                {!loadingPets && pets.length === 0 && <p className="form-hint">暂无宠物，请先为此客户添加宠物。</p>}
                                 {petRows.map((row, index) => (
                                     <div className="form-card" key={row.key}>
                                         <div className="form-card-heading">
-                                            <h3>Pet {index + 1}</h3>
-                                            {index > 0 && <button className="text-button" type="button" onClick={() => setPetRows((rows) => rows.filter((item) => item.key !== row.key))}>Remove</button>}
+                                            <h3>宠物 {index + 1}</h3>
+                                            {index > 0 && <button className="text-button" type="button" onClick={() => setPetRows((rows) => rows.filter((item) => item.key !== row.key))}>移除</button>}
                                         </div>
-                                        <label>Pet
+                                        <label>宠物
                                             <select value={row.petId} onChange={(event) => updateRow(row.key, "petId", event.target.value)} required>
-                                                <option value="">Choose pet</option>
-                                                {pets.map((pet) => <option key={pet.pet_id} value={pet.pet_id}>{pet.pet_name}{pet.pet_type ? ` · ${pet.pet_type}` : ""}</option>)}
+                                                <option value="">请选择宠物</option>
+                                                {pets.map((pet) => <option key={pet.pet_id} value={pet.pet_id}>{pet.pet_name}{pet.pet_type ? ` · ${displayPetType(pet.pet_type)}` : ""}</option>)}
                                             </select>
                                         </label>
-                                        <label>Service
+                                        <label>服务
                                             <select value={row.serviceId} onChange={(event) => updateRow(row.key, "serviceId", event.target.value)} required>
-                                                <option value="">Choose service</option>
+                                                <option value="">请选择服务</option>
                                                 {services.map((service) => <option key={service.service_id} value={service.service_id}>{service.service_name} · {formatMoney(service.default_price)}</option>)}
                                             </select>
                                         </label>
-                                        <label>Pet remark
+                                        <label>宠物备注
                                             <textarea rows={2} value={row.remark} onChange={(event) => updateRow(row.key, "remark", event.target.value)} />
                                         </label>
                                     </div>
@@ -256,35 +257,35 @@ function NewAppointmentSheet({ date, onClose, onSuccess }: Props) {
                                 <button className="text-button" type="button" onClick={() => {
                                     setPetRows((rows) => [...rows, emptyRow(nextRowKey)]);
                                     setNextRowKey((key) => key + 1);
-                                }}>+ Add Another Pet</button>
+                                }}>+ 添加另一只宠物</button>
                                 <button className="text-button" type="button" onClick={() => setShowPetForm((value) => !value)}>
-                                    {showPetForm ? "Cancel new pet" : "+ Add Pet"}
+                                    {showPetForm ? "取消新增宠物" : "+ 添加宠物"}
                                 </button>
                                 {showPetForm && (
                                     <div className="form-card inline-create">
-                                        <h3>New Pet</h3>
-                                        <label>Pet Name<input value={petName} onChange={(event) => setPetName(event.target.value)} maxLength={100} /></label>
-                                        <label>Pet Type<input value={petType} onChange={(event) => setPetType(event.target.value)} maxLength={50} /></label>
-                                        <label>Remark<textarea rows={2} value={petRemark} onChange={(event) => setPetRemark(event.target.value)} /></label>
+                                        <h3>新增宠物</h3>
+                                        <label>宠物名称<input value={petName} onChange={(event) => setPetName(event.target.value)} maxLength={100} /></label>
+                                        <label>宠物类型<input value={petType} onChange={(event) => setPetType(event.target.value)} maxLength={50} /></label>
+                                        <label>备注<textarea rows={2} value={petRemark} onChange={(event) => setPetRemark(event.target.value)} /></label>
                                         {petError && <p className="form-error" role="alert">{petError}</p>}
-                                        <button className="secondary-button" type="button" onClick={submitPet} disabled={submitting}>{submitting ? "Saving..." : "Save Pet"}</button>
+                                        <button className="secondary-button" type="button" onClick={submitPet} disabled={submitting}>{submitting ? "保存中..." : "保存宠物"}</button>
                                     </div>
                                 )}
                             </>
                         )}
                         <div className="form-card">
-                            <label>Appointment remark
-                                <textarea rows={2} value={remark} onChange={(event) => setRemark(event.target.value)} placeholder="e.g. WhatsApp booking" />
+                            <label>预约备注
+                                <textarea rows={2} value={remark} onChange={(event) => setRemark(event.target.value)} placeholder="例如：通过 WhatsApp 预约" />
                             </label>
                         </div>
                     </div>
 
-                    {services.length === 0 && <p className="form-error">No active services are available.</p>}
+                    {services.length === 0 && <p className="form-error">暂无已启用的服务。</p>}
                     {error && <p className="form-error" role="alert">{error}</p>}
                     <button className="primary-button" type="button" onClick={submitAppointment} disabled={submitting || services.length === 0 || loadingPets}>
-                        {submitting ? "Creating..." : "Create Appointment"}
+                        {submitting ? "创建中..." : "创建预约"}
                     </button>
-                    <button className="secondary-button" type="button" onClick={onClose} disabled={submitting}>Back to day</button>
+                    <button className="secondary-button" type="button" onClick={onClose} disabled={submitting}>返回当日预约</button>
                 </div>
             )}
         </BottomSheet>

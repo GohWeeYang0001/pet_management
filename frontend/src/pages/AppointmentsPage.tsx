@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 
 import { getAppointments } from "../services/appointmentService";
 import type { Appointment } from "../types/appointment";
+import { appointmentStatusLabels, displayPetType } from "../utils/displayLabels";
 
 function AppointmentsPage() {
     const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -17,7 +18,7 @@ function AppointmentsPage() {
             } catch (error) {
                 console.error(error);
 
-                setError("Failed to load appointments");
+                setError("预约加载失败");
             } finally {
                 setLoading(false);
             }
@@ -27,7 +28,7 @@ function AppointmentsPage() {
     }, []);
 
     if (loading) {
-        return <p>Loading appointments...</p>;
+        return <p>预约加载中...</p>;
     }
 
     if (error) {
@@ -36,55 +37,55 @@ function AppointmentsPage() {
 
     return (
         <div>
-            <h1>Appointments</h1>
+            <h1>预约</h1>
 
             {appointments.map((appointment) => (
                 <div key={appointment.appointment_id}>
                     <h2>{appointment.customer_name}</h2>
 
                     <p>
-                        Date: {appointment.appointment_date}
+                        日期： {appointment.appointment_date}
                     </p>
 
                     <p>
-                        Time: {appointment.start_time}
+                        时间： {appointment.start_time}
                     </p>
 
                     <p>
-                        Phone: {appointment.customer_hp}
+                        电话号码： {appointment.customer_hp}
                     </p>
 
                     <p>
-                        Status: {appointment.status}
+                        状态： {appointmentStatusLabels[appointment.status]}
                     </p>
 
                     {appointment.remark && (
                         <p>
-                            Appointment Remark: {appointment.remark}
+                            预约备注： {appointment.remark}
                         </p>
                     )}
 
-                    <h3>Pets</h3>
+                    <h3>宠物</h3>
 
                     {appointment.pets.map((pet) => (
                         <div key={pet.appointment_pet_id}>
                             <p>
-                                Pet: {pet.pet_name}
-                                {pet.pet_type && ` (${pet.pet_type})`}
+                                宠物： {pet.pet_name}
+                                {pet.pet_type && ` (${displayPetType(pet.pet_type)})`}
                             </p>
 
                             <p>
-                                Service: {pet.service_name}
+                                服务： {pet.service_name}
                             </p>
 
                             <p>
-                                Default Price: RM
+                                默认价格：RM
                                 {pet.default_price ?? "-"}
                             </p>
 
                             {pet.remark && (
                                 <p>
-                                    Remark: {pet.remark}
+                                    备注： {pet.remark}
                                 </p>
                             )}
 

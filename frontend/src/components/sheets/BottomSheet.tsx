@@ -46,7 +46,7 @@ function BottomSheet({ title, subtitle, onClose, children }: BottomSheetProps) {
                     <button
                         className="sheet-close"
                         type="button"
-                        aria-label="Close"
+                        aria-label="关闭"
                         onClick={onClose}
                         autoFocus
                     >

@@ -22,21 +22,21 @@ function App() {
     async function checkSession() {
         setChecking(true); setStartupError("");
         try { setUser(await getCurrentUser()); }
-        catch { setStartupError("Unable to connect. Please check your connection and try again."); }
+        catch { setStartupError("无法连接，请检查网络后重试。"); }
         finally { setChecking(false); }
     }
 
     useEffect(() => {
         let current = true;
         getCurrentUser().then((authenticatedUser) => { if (current) setUser(authenticatedUser); })
-            .catch(() => { if (current) setStartupError("Unable to connect. Please check your connection and try again."); })
+            .catch(() => { if (current) setStartupError("无法连接，请检查网络后重试。"); })
             .finally(() => { if (current) setChecking(false); });
         return () => { current = false; };
     }, []);
     useEffect(() => {
         function expired() {
             setUser(null); setActiveTab("calendar");
-            setNotice("Your session has expired. Please log in again.");
+            setNotice("登录已过期，请重新登录。");
         }
         window.addEventListener(SESSION_EXPIRED_EVENT, expired);
         return () => window.removeEventListener(SESSION_EXPIRED_EVENT, expired);
@@ -48,8 +48,8 @@ function App() {
     }
 
     if (checking || startupError || !user) return <div className="mobile-app">
-        {checking ? <div className="auth-state" role="status">Checking your session...</div> :
-            startupError ? <div className="auth-state"><p className="form-error" role="alert">{startupError}</p><button className="primary-button" type="button" onClick={checkSession}>Retry</button></div> :
+        {checking ? <div className="auth-state" role="status">正在验证登录状态...</div> :
+            startupError ? <div className="auth-state"><p className="form-error" role="alert">{startupError}</p><button className="primary-button" type="button" onClick={checkSession}>重试</button></div> :
                 <LoginPage notice={notice} onLogin={(authenticatedUser) => { setUser(authenticatedUser); setNotice(""); }} />}
     </div>;
 
@@ -68,7 +68,7 @@ function App() {
                 />
             }
         >
-            <Suspense fallback={<div className="calendar-state" role="status">Loading...</div>}>{page}</Suspense>
+            <Suspense fallback={<div className="calendar-state" role="status">加载中...</div>}>{page}</Suspense>
         </MobileLayout>
     );
 }

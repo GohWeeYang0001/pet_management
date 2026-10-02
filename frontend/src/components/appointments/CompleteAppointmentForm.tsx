@@ -31,7 +31,7 @@ function CompleteAppointmentForm({ appointment, onClose, onSuccess }: Props) {
         const invalid = entries.some((entry) => !entry.amount.trim() ||
             !/^\d+(\.\d{1,2})?$/.test(entry.amount.trim()));
         if (invalid) {
-            setError("Enter a non-negative amount with up to two decimal places for every pet.");
+            setError("请为每只宠物填写非负金额，最多保留两位小数。");
             return;
         }
         setSubmitting(true);
@@ -47,26 +47,26 @@ function CompleteAppointmentForm({ appointment, onClose, onSuccess }: Props) {
             await onSuccess();
         } catch (submitError) {
             console.error(submitError);
-            setError("Could not complete this appointment. Please try again.");
+            setError("无法完成此预约，请重试。");
         } finally {
             setSubmitting(false);
         }
     }
 
     return (
-        <BottomSheet title="Complete Appointment" subtitle={appointment.customer_name} onClose={onClose}>
+        <BottomSheet title="完成服务" subtitle={appointment.customer_name} onClose={onClose}>
             <form className="sheet-form" onSubmit={submit}>
                 {entries.map((entry, index) => {
                     const pet = appointment.pets[index];
                     return (
                         <fieldset className="form-card" key={entry.appointment_pet_id} disabled={submitting}>
                             <legend>{pet.pet_name} · {pet.service_name}</legend>
-                            <p className="form-hint">Default price: {formatMoney(pet.default_price)}</p>
-                            <label>Actual Amount (RM)
+                            <p className="form-hint">默认价格： {formatMoney(pet.default_price)}</p>
+                            <label>实际金额（RM）
                                 <input type="number" min="0" step="0.01" inputMode="decimal" required value={entry.amount}
                                     onChange={(event) => updateEntry(index, "amount", event.target.value)} />
                             </label>
-                            <label>Remark
+                            <label>备注
                                 <textarea rows={2} value={entry.remark} onChange={(event) => updateEntry(index, "remark", event.target.value)} />
                             </label>
                         </fieldset>
@@ -74,9 +74,9 @@ function CompleteAppointmentForm({ appointment, onClose, onSuccess }: Props) {
                 })}
                 {error && <p className="form-error" role="alert">{error}</p>}
                 <button className="primary-button" type="submit" disabled={submitting}>
-                    {submitting ? "Completing..." : "Save and Complete"}
+                    {submitting ? "完成处理中..." : "保存并完成"}
                 </button>
-                <button className="secondary-button" type="button" onClick={onClose} disabled={submitting}>Back to details</button>
+                <button className="secondary-button" type="button" onClick={onClose} disabled={submitting}>返回预约详情</button>
             </form>
         </BottomSheet>
     );

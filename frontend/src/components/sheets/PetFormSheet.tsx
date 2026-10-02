@@ -18,7 +18,7 @@ export default function PetFormSheet({ customerId, pet, onClose, onSaved }: Prop
     const [error, setError] = useState("");
 
     async function save() {
-        if (!name.trim()) { setError("Pet name is required."); return; }
+        if (!name.trim()) { setError("请填写宠物名称。"); return; }
         setSaving(true); setError("");
         try {
             if (pet) await updatePet(customerId, pet.pet_id, name.trim(), type.trim(), remark.trim());
@@ -26,19 +26,19 @@ export default function PetFormSheet({ customerId, pet, onClose, onSaved }: Prop
             await onSaved();
         } catch (failure) {
             console.error(failure);
-            setError("Could not save pet. Please check the details and try again.");
+            setError("宠物保存失败，请检查资料后重试。");
         } finally { setSaving(false); }
     }
 
-    return <BottomSheet title={pet ? "Edit Pet" : "Add Pet"} subtitle={pet?.pet_name} onClose={onClose}>
+    return <BottomSheet title={pet ? "编辑宠物" : "新增宠物"} subtitle={pet?.pet_name} onClose={onClose}>
         <div className="sheet-form"><div className="form-card">
-            <label>Pet Name<input value={name} onChange={(event) => setName(event.target.value)} maxLength={100} required /></label>
-            <label>Pet Type<input value={type} onChange={(event) => setType(event.target.value)} maxLength={50} /></label>
-            <label>Remark<textarea rows={3} value={remark} onChange={(event) => setRemark(event.target.value)} /></label>
+            <label>宠物名称<input value={name} onChange={(event) => setName(event.target.value)} maxLength={100} required /></label>
+            <label>宠物类型<input value={type} onChange={(event) => setType(event.target.value)} maxLength={50} /></label>
+            <label>备注<textarea rows={3} value={remark} onChange={(event) => setRemark(event.target.value)} /></label>
         </div>
             {error && <p className="form-error" role="alert">{error}</p>}
-            <button className="primary-button" type="button" disabled={saving} onClick={save}>{saving ? "Saving..." : "Save Pet"}</button>
-            <button className="secondary-button" type="button" disabled={saving} onClick={onClose}>Back to customer</button>
+            <button className="primary-button" type="button" disabled={saving} onClick={save}>{saving ? "保存中..." : "保存宠物"}</button>
+            <button className="secondary-button" type="button" disabled={saving} onClick={onClose}>返回客户资料</button>
         </div>
     </BottomSheet>;
 }

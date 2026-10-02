@@ -6,9 +6,9 @@ interface BottomNavigationProps {
 }
 
 const items: Array<{ id: NavigationTab; label: string; icon: "calendar" | "users" | "more" }> = [
-    { id: "calendar", label: "Calendar", icon: "calendar" },
-    { id: "customers", label: "Customers", icon: "users" },
-    { id: "more", label: "More", icon: "more" },
+    { id: "calendar", label: "日历", icon: "calendar" },
+    { id: "customers", label: "客户", icon: "users" },
+    { id: "more", label: "更多", icon: "more" },
 ];
 
 function NavigationIcon({ name }: { name: "calendar" | "users" | "more" }) {
@@ -42,7 +42,7 @@ function NavigationIcon({ name }: { name: "calendar" | "users" | "more" }) {
 
 function BottomNavigation({ activeTab, onTabChange }: BottomNavigationProps) {
     return (
-        <nav className="bottom-navigation" aria-label="Main navigation">
+        <nav className="bottom-navigation" aria-label="主导航">
             {items.map((item) => (
                 <button
                     className={`nav-item${activeTab === item.id ? " active" : ""}`}

@@ -28,7 +28,7 @@ function CalendarPage() {
             return true;
         } catch (refreshFailure) {
             console.error(refreshFailure);
-            setRefreshError("Saved, but appointments could not be refreshed. Try again to see the latest data.");
+            setRefreshError("已保存，但预约刷新失败。请重试以查看最新数据。");
             return false;
         }
     }, []);
@@ -39,7 +39,7 @@ function CalendarPage() {
             .then((data) => { if (current) setAppointments(data); })
             .catch((loadError) => {
                 console.error(loadError);
-                if (current) setError("Unable to load appointments.");
+                if (current) setError("预约加载失败。");
             })
             .finally(() => { if (current) setLoading(false); });
         return () => { current = false; };
@@ -81,7 +81,7 @@ function CalendarPage() {
     }
 
     async function confirmCancel() {
-        if (!selectedAppointment || !window.confirm("Cancel this appointment? It will remain in history.")) return;
+        if (!selectedAppointment || !window.confirm("确定取消此预约吗？取消后仍会保留在历史记录中。")) return;
         setCancelling(true);
         setActionError("");
         try {
@@ -90,7 +90,7 @@ function CalendarPage() {
             setActiveSheet("day");
         } catch (failure) {
             console.error(failure);
-            setActionError("Could not cancel the appointment. Please try again.");
+            setActionError("预约取消失败，请重试。");
         } finally {
             setCancelling(false);
         }
@@ -99,19 +99,19 @@ function CalendarPage() {
     return (
         <>
             <header className="page-header">
-                <p className="page-eyebrow">Pet Management</p>
-                <h1 className="page-title">Calendar</h1>
+                <p className="page-eyebrow">宠物管理</p>
+                <h1 className="page-title">日历</h1>
             </header>
 
             {refreshError && (
                 <div className="refresh-notice" role="alert">
                     <span>{refreshError}</span>
-                    <button type="button" onClick={refreshAppointments}>Retry</button>
+                    <button type="button" onClick={refreshAppointments}>重试</button>
                 </div>
             )}
 
-            <section className="calendar-card" aria-label="Appointment calendar">
-                {loading && <div className="calendar-state">Loading appointments...</div>}
+            <section className="calendar-card" aria-label="预约日历">
+                {loading && <div className="calendar-state">预约加载中...</div>}
                 {!loading && error && <div className="calendar-state error">{error}</div>}
                 {!loading && !error && (
                     <AppointmentCalendar

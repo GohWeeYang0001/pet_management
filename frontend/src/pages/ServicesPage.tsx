@@ -15,7 +15,7 @@ export default function ServicesPage() {
     const [error, setError] = useState("");
     const [formError, setFormError] = useState("");
     useEffect(() => {
-        getServices(true).then(setServices).catch(() => setError("Could not load services."))
+        getServices(true).then(setServices).catch(() => setError("服务加载失败。"))
             .finally(() => setLoading(false));
     }, []);
     function open(service: Service | null) {
@@ -24,28 +24,28 @@ export default function ServicesPage() {
     }
     async function save() {
         const amount = Number(price);
-        if (!name.trim() || price === "" || !Number.isFinite(amount) || amount < 0) { setFormError("Name and a valid non-negative price are required."); return; }
+        if (!name.trim() || price === "" || !Number.isFinite(amount) || amount < 0) { setFormError("请填写服务名称及有效的非负价格。"); return; }
         setSaving(true); setFormError("");
         try {
             if (selected) await updateService(selected.service_id, name.trim(), amount, active);
             else await createService(name.trim(), amount);
             setServices(await getServices(true)); setSelected(undefined);
-        } catch (failure) { console.error(failure); setFormError("Could not save service. Please try again."); }
+        } catch (failure) { console.error(failure); setFormError("服务保存失败，请重试。"); }
         finally { setSaving(false); }
     }
     return <main className="business-page">
-        <button className="primary-button" type="button" onClick={() => open(null)}>+ Add Service</button>
+        <button className="primary-button" type="button" onClick={() => open(null)}>+ 新增服务</button>
         {error && <p className="form-error" role="alert">{error}</p>}
-        {loading ? <p className="form-hint">Loading services...</p> : <div className="business-list">{services.map((service) => <button type="button" className="business-row" key={service.service_id} onClick={() => open(service)}>
-            <span><strong>{service.service_name}</strong><small>{service.is_active ? "Active" : "Inactive"}</small></span><strong>{formatMoney(service.default_price)}</strong>
+        {loading ? <p className="form-hint">服务加载中...</p> : <div className="business-list">{services.map((service) => <button type="button" className="business-row" key={service.service_id} onClick={() => open(service)}>
+            <span><strong>{service.service_name}</strong><small>{service.is_active ? "启用" : "停用"}</small></span><strong>{formatMoney(service.default_price)}</strong>
         </button>)}</div>}
-        {selected !== undefined && <BottomSheet title={selected ? "Edit Service" : "Add Service"} onClose={() => setSelected(undefined)}>
+        {selected !== undefined && <BottomSheet title={selected ? "编辑服务" : "新增服务"} onClose={() => setSelected(undefined)}>
             <div className="sheet-form"><div className="form-card">
-                <label>Name<input value={name} onChange={(event) => setName(event.target.value)} maxLength={100} required /></label>
-                <label>Default price (RM)<input type="number" min="0" step="0.01" inputMode="decimal" value={price} onChange={(event) => setPrice(event.target.value)} required /></label>
-                {selected && <label className="check-label"><input type="checkbox" checked={active} onChange={(event) => setActive(event.target.checked)} /> Active</label>}
+                <label>服务名称<input value={name} onChange={(event) => setName(event.target.value)} maxLength={100} required /></label>
+                <label>默认价格（RM）<input type="number" min="0" step="0.01" inputMode="decimal" value={price} onChange={(event) => setPrice(event.target.value)} required /></label>
+                {selected && <label className="check-label"><input type="checkbox" checked={active} onChange={(event) => setActive(event.target.checked)} /> 启用</label>}
             </div>{formError && <p className="form-error" role="alert">{formError}</p>}
-                <button className="primary-button" type="button" disabled={saving} onClick={save}>{saving ? "Saving..." : "Save Service"}</button>
+                <button className="primary-button" type="button" disabled={saving} onClick={save}>{saving ? "保存中..." : "保存服务"}</button>
             </div>
         </BottomSheet>}
     </main>;
