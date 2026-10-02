@@ -188,7 +188,7 @@ function NewAppointmentSheet({ date, onClose, onSuccess }: Props) {
             {loading ? <p className="form-hint">Loading form...</p> : (
                 <div className="sheet-form">
                     <div className="appointment-fields">
-                        <div className="form-card">
+                        <div className="form-card appointment-time-fields">
                             <label>Date<input type="text" value={formatAppointmentDate(date)} readOnly /></label>
                             <label>Time<input type="time" value={time} onChange={(event) => setTime(event.target.value)} required /></label>
                         </div>

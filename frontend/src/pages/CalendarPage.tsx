@@ -116,6 +116,7 @@ function CalendarPage() {
                 {!loading && !error && (
                     <AppointmentCalendar
                         appointments={appointments}
+                        selectedDate={selectedDate}
                         onDateSelect={selectDate}
                     />
                 )}

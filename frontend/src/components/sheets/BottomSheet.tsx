@@ -28,13 +28,14 @@ function BottomSheet({ title, subtitle, onClose, children }: BottomSheetProps) {
     }, [onClose]);
 
     return (
-        <div className="sheet-backdrop" onMouseDown={onClose} role="presentation">
+        <div className="sheet-backdrop" onClick={(event) => {
+            if (event.target === event.currentTarget) onClose();
+        }} role="presentation">
             <section
                 className="bottom-sheet"
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="sheet-title"
-                onMouseDown={(event) => event.stopPropagation()}
             >
                 <div className="sheet-handle" aria-hidden="true" />
                 <header className="sheet-header">
