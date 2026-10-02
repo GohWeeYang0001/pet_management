@@ -13,8 +13,7 @@ export function shiftMonth(month: string, offset: number): string {
 
 export function monthTitle(month: string): string {
     const [year, monthNumber] = month.split("-").map(Number);
-    const names = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-    return `${names[monthNumber - 1]} ${year}`;
+    return `${year}年${Number(monthNumber)}月`;
 }
 
 export function todayDateOnly(): string {

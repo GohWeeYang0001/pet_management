@@ -1,5 +1,6 @@
 import BottomSheet from "./BottomSheet";
 import type { Appointment } from "../../types/appointment";
+import { appointmentStatusLabels } from "../../utils/displayLabels";
 import { formatAppointmentDate, formatAppointmentTime } from "../../utils/appointmentFormat";
 
 interface DayAppointmentsSheetProps {
@@ -18,7 +19,7 @@ function DayAppointmentsSheet({ date, appointments, onClose, onAppointmentSelect
     const sortedAppointments = [...appointments].sort((a, b) =>
         a.start_time.localeCompare(b.start_time),
     );
-    const appointmentLabel = `${appointments.length} Appointment${appointments.length === 1 ? "" : "s"}`;
+    const appointmentLabel = `${appointments.length}个预约`;
 
     return (
         <BottomSheet title={formatAppointmentDate(date)} subtitle={appointmentLabel} onClose={onClose}>
@@ -33,7 +34,7 @@ function DayAppointmentsSheet({ date, appointments, onClose, onAppointmentSelect
                                 className={`appointment-card ${className}`}
                                 key={appointment.appointment_id}
                                 onClick={() => onAppointmentSelect(appointment.appointment_id)}
-                                aria-label={`View ${appointment.customer_name}'s appointment at ${formatAppointmentTime(appointment.start_time)}`}
+                                aria-label={`查看${appointment.customer_name}在${formatAppointmentTime(appointment.start_time)}的预约`}
                             >
                                 <p className="appointment-time">{formatAppointmentTime(appointment.start_time)}</p>
                                 <p className="appointment-customer">{appointment.customer_name}</p>
@@ -43,7 +44,7 @@ function DayAppointmentsSheet({ date, appointments, onClose, onAppointmentSelect
                                     </p>
                                 ))}
                                 <span className={`status-badge ${className}`}>
-                                    {appointment.status}
+                                    {appointmentStatusLabels[appointment.status]}
                                 </span>
                                 <span className="appointment-chevron" aria-hidden="true">›</span>
                             </button>
@@ -51,7 +52,7 @@ function DayAppointmentsSheet({ date, appointments, onClose, onAppointmentSelect
                     })}
                 </div>
             ) : (
-                <div className="empty-appointments">No appointments</div>
+                <div className="empty-appointments">暂无预约记录</div>
             )}
 
             <button
@@ -59,7 +60,7 @@ function DayAppointmentsSheet({ date, appointments, onClose, onAppointmentSelect
                 type="button"
                 onClick={onAddAppointment}
             >
-                + Add Appointment
+                + 新增预约
             </button>
         </BottomSheet>
     );

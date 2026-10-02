@@ -1,10 +1,10 @@
 export const expenseCategories = [
-    { value: "INVENTORY", label: "Inventory" },
-    { value: "TRANSPORT", label: "Transport" },
-    { value: "TOOLS", label: "Tools" },
-    { value: "UTILITIES", label: "Utilities" },
-    { value: "MARKETING", label: "Marketing" },
-    { value: "OTHER", label: "Other" },
+    { value: "INVENTORY", label: "库存" },
+    { value: "TRANSPORT", label: "交通" },
+    { value: "TOOLS", label: "工具" },
+    { value: "UTILITIES", label: "水电/杂费" },
+    { value: "MARKETING", label: "营销" },
+    { value: "OTHER", label: "其他" },
 ] as const;
 
 export type ExpenseCategory = typeof expenseCategories[number]["value"];

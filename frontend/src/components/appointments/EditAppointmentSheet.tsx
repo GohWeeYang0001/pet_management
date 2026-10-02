@@ -29,7 +29,7 @@ export default function EditAppointmentSheet({ appointment, onClose, onSuccess }
         let current = true;
         Promise.all([getCustomerPets(appointment.customer_id), getServices(true)])
             .then(([petData, serviceData]) => { if (current) { setPets(petData); setServices(serviceData); } })
-            .catch(() => { if (current) setError("Could not load pets or services. Please reopen this form."); })
+            .catch(() => { if (current) setError("宠物或服务加载失败，请重新打开表单。"); })
             .finally(() => { if (current) setLoading(false); });
         return () => { current = false; };
     }, [appointment.customer_id]);
@@ -40,7 +40,7 @@ export default function EditAppointmentSheet({ appointment, onClose, onSuccess }
 
     async function save() {
         if (!date || !time || rows.length === 0 || rows.some((row) => !row.pet_id || !row.service_id)) {
-            setError("Date, time, pet and service are required for each row."); return;
+            setError("请填写日期和时间，并为每一项选择宠物和服务。"); return;
         }
         setSubmitting(true); setError("");
         try {
@@ -52,35 +52,35 @@ export default function EditAppointmentSheet({ appointment, onClose, onSuccess }
             await onSuccess(date);
         } catch (failure) {
             console.error(failure);
-            setError("Could not save the appointment. Check the details and try again.");
+            setError("预约保存失败，请检查资料后重试。");
         } finally { setSubmitting(false); }
     }
 
-    return <BottomSheet title="Edit Appointment" subtitle={appointment.customer_name} onClose={onClose}>
-        {loading ? <p className="form-hint">Loading form...</p> : <div className="sheet-form">
+    return <BottomSheet title="编辑预约" subtitle={appointment.customer_name} onClose={onClose}>
+        {loading ? <p className="form-hint">表单加载中...</p> : <div className="sheet-form">
             <div className="form-card appointment-time-fields">
-                <label>Date<input type="date" value={date} onChange={(event) => setDate(event.target.value)} required /></label>
-                <label>Time<input type="time" value={time} onChange={(event) => setTime(event.target.value)} required /></label>
-                <p className="form-hint">Customer: {appointment.customer_name}</p>
+                <label>日期<input type="date" value={date} onChange={(event) => setDate(event.target.value)} required /></label>
+                <label>时间<input type="time" value={time} onChange={(event) => setTime(event.target.value)} required /></label>
+                <p className="form-hint">客户： {appointment.customer_name}</p>
             </div>
             {rows.map((row, index) => <div className="form-card" key={row.key}>
-                <div className="form-card-heading"><h3>Pet {index + 1}</h3>
-                    {rows.length > 1 && <button type="button" className="text-button" onClick={() => setRows((current) => current.filter((item) => item.key !== row.key))}>Remove</button>}
+                <div className="form-card-heading"><h3>宠物 {index + 1}</h3>
+                    {rows.length > 1 && <button type="button" className="text-button" onClick={() => setRows((current) => current.filter((item) => item.key !== row.key))}>移除</button>}
                 </div>
-                <label>Pet<select value={row.pet_id} onChange={(event) => changeRow(row.key, "pet_id", event.target.value)} required>
-                    <option value="">Choose pet</option>{pets.map((pet) => <option key={pet.pet_id} value={pet.pet_id}>{pet.pet_name}</option>)}
+                <label>宠物<select value={row.pet_id} onChange={(event) => changeRow(row.key, "pet_id", event.target.value)} required>
+                    <option value="">请选择宠物</option>{pets.map((pet) => <option key={pet.pet_id} value={pet.pet_id}>{pet.pet_name}</option>)}
                 </select></label>
-                <label>Service<select value={row.service_id} onChange={(event) => changeRow(row.key, "service_id", event.target.value)} required>
-                    <option value="">Choose service</option>{services.filter((service) => service.is_active || String(service.service_id) === row.service_id)
-                        .map((service) => <option key={service.service_id} value={service.service_id}>{service.service_name} · {formatMoney(service.default_price)}{service.is_active ? "" : " (inactive)"}</option>)}
+                <label>服务<select value={row.service_id} onChange={(event) => changeRow(row.key, "service_id", event.target.value)} required>
+                    <option value="">请选择服务</option>{services.filter((service) => service.is_active || String(service.service_id) === row.service_id)
+                        .map((service) => <option key={service.service_id} value={service.service_id}>{service.service_name} · {formatMoney(service.default_price)}{service.is_active ? "" : "（已停用）"}</option>)}
                 </select></label>
-                <label>Pet remark<textarea rows={2} value={row.remark} onChange={(event) => changeRow(row.key, "remark", event.target.value)} /></label>
+                <label>宠物备注<textarea rows={2} value={row.remark} onChange={(event) => changeRow(row.key, "remark", event.target.value)} /></label>
             </div>)}
-            <button className="text-button" type="button" onClick={() => setRows((current) => [...current, { key: Math.max(0, ...current.map((row) => row.key)) + 1, pet_id: "", service_id: "", remark: "" }])}>+ Add Another Pet</button>
-            <div className="form-card"><label>Appointment remark<textarea rows={2} value={remark} onChange={(event) => setRemark(event.target.value)} /></label></div>
+            <button className="text-button" type="button" onClick={() => setRows((current) => [...current, { key: Math.max(0, ...current.map((row) => row.key)) + 1, pet_id: "", service_id: "", remark: "" }])}>+ 添加另一只宠物</button>
+            <div className="form-card"><label>预约备注<textarea rows={2} value={remark} onChange={(event) => setRemark(event.target.value)} /></label></div>
             {error && <p className="form-error" role="alert">{error}</p>}
-            <button className="primary-button" type="button" onClick={save} disabled={submitting || Boolean(error && !pets.length)}>{submitting ? "Saving..." : "Save Changes"}</button>
-            <button className="secondary-button" type="button" onClick={onClose} disabled={submitting}>Back</button>
+            <button className="primary-button" type="button" onClick={save} disabled={submitting || Boolean(error && !pets.length)}>{submitting ? "保存中..." : "保存修改"}</button>
+            <button className="secondary-button" type="button" onClick={onClose} disabled={submitting}>返回</button>
         </div>}
     </BottomSheet>;
 }

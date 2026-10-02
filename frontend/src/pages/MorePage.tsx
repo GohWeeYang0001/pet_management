@@ -4,13 +4,14 @@ import ExpensesPage from "./ExpensesPage";
 import InventoryPage from "./InventoryPage";
 import ServicesPage from "./ServicesPage";
 import type { AuthUser } from "../types/auth";
+import { roleLabels } from "../utils/displayLabels";
 
 type Section = "revenue" | "expenses" | "inventory" | "services";
 const sections: Array<{ key: Section; label: string; description: string }> = [
-    { key: "revenue", label: "Revenue", description: "View monthly business performance" },
-    { key: "expenses", label: "Expenses", description: "Track business spending" },
-    { key: "inventory", label: "Inventory", description: "Manage supplies and low stock" },
-    { key: "services", label: "Services", description: "Manage grooming services" },
+    { key: "revenue", label: "营业额", description: "查看每月经营状况" },
+    { key: "expenses", label: "支出", description: "记录业务支出" },
+    { key: "inventory", label: "库存", description: "管理物品及库存不足提醒" },
+    { key: "services", label: "服务管理", description: "管理宠物美容服务" },
 ];
 
 export default function MorePage({ user, onLogout }: { user: AuthUser; onLogout: () => Promise<void> }) {
@@ -20,14 +21,14 @@ export default function MorePage({ user, onLogout }: { user: AuthUser; onLogout:
     async function signOut() {
         setLoggingOut(true); setLogoutError("");
         try { await onLogout(); }
-        catch { setLogoutError("Could not log out. Please try again."); }
+        catch { setLogoutError("无法退出登录，请重试。"); }
         finally { setLoggingOut(false); }
     }
-    const title = sections.find((item) => item.key === section)?.label ?? "More";
+    const title = sections.find((item) => item.key === section)?.label ?? "更多";
     return <>
         <header className="page-header">
-            {section && <button className="back-button" type="button" onClick={() => setSection(null)}>‹ Back to More</button>}
-            <p className="page-eyebrow">Pet Management</p><h1 className="page-title">{title}</h1>
+            {section && <button className="back-button" type="button" onClick={() => setSection(null)}>‹ 返回更多</button>}
+            <p className="page-eyebrow">宠物管理</p><h1 className="page-title">{title}</h1>
         </header>
         {section === "revenue" && <RevenuePage />}
         {section === "expenses" && <ExpensesPage />}
@@ -37,10 +38,10 @@ export default function MorePage({ user, onLogout }: { user: AuthUser; onLogout:
             {sections.map((item) => <button className="business-row" type="button" key={item.key} onClick={() => setSection(item.key)}>
                 <span><strong>{item.label}</strong><small>{item.description}</small></span><span aria-hidden="true">›</span>
             </button>)}
-        </div><section className="account-card" aria-label="Account">
-            <p><strong>{user.username}</strong></p><p className="form-hint">{user.role === "ADMIN" ? "Admin" : "Employee"}</p>
+        </div><section className="account-card" aria-label="账户">
+            <p><strong>{user.username}</strong></p><p className="form-hint">{roleLabels[user.role]}</p>
             {logoutError && <p className="form-error" role="alert">{logoutError}</p>}
-            <button className="secondary-button" type="button" onClick={signOut} disabled={loggingOut}>{loggingOut ? "Logging out..." : "Logout"}</button>
+            <button className="secondary-button" type="button" onClick={signOut} disabled={loggingOut}>{loggingOut ? "正在退出..." : "退出登录"}</button>
         </section></main>}
     </>;
 }
