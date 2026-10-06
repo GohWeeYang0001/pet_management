@@ -114,10 +114,10 @@ for certificate rotations. Certificate/hostname verification must not be
 disabled to resolve connection errors. Use the actual RDS hostname. Local
 PostgreSQL remains non-TLS unless configured. No RDS connection has been tested.
 
-**One recommended fresh-production initialization process:** use the current
-schema bootstrap **then migration 001 only**. `database/schema.sql` already
-includes the final appointment-status rules (002) and authentication tables
-(003), but it does not include expenses/inventory (001).
+**One recommended fresh-production initialization process:** use
+`database/schema.sql` **alone**. It is the complete fresh-database schema,
+including expenses/inventory, authentication, Business V2, and the five official
+travel fee rules. Historical migrations are upgrade paths, not bootstrap steps.
 
 1. Later, provision a **new empty** production database and a bootstrap role
    through the approved manual infrastructure workflow. Confirm target hostname
@@ -129,21 +129,22 @@ includes the final appointment-status rules (002) and authentication tables
 
    ```text
    psql -X -W --set=ON_ERROR_STOP=1 --single-transaction --file=database/schema.sql
-   psql -X -W --set=ON_ERROR_STOP=1 --file=database/migrations/001_add_expenses_inventory.sql
    ```
 
    Before these commands, configure PGHOST, PGPORT, PGUSER, PGDATABASE,
    PGSSLMODE=verify-full and PGSSLROOTCERT in the protected administrative
    session. Do not set/print passwords in command history. The schema transaction
-   is atomic; migration 001 has its own transaction. If 001 fails, stop and
-   investigate; do not rerun the schema over existing tables.
-4. **Do not run 002 or 003 after this bootstrap**; their changes are already in
-   schema.sql and 003 would duplicate tables. Do not run seed.sql automatically:
+   is atomic. If initialization fails, stop and investigate; do not rerun the
+   schema over existing tables.
+4. **Do not run migrations 001–004 after this bootstrap**; their structures are
+   already in schema.sql. Do not run seed.sql automatically:
    it contains demonstration business data. Verify expected tables and constraints,
-   including expense, inventory_item, inventory_transaction, app_user and app_session.
-5. Record the schema baseline and migration 001 application manually. Already
+   including expense, inventory_item, inventory_transaction, app_user, app_session,
+   appointment_pet_addon, travel_fee_option, customer_address and payment.
+5. Record the complete schema baseline manually. Already
    populated/legacy databases require a separate migration-state review; do not
-   reuse this fresh-database procedure for them. No applied migrations were edited.
+   reuse this fresh-database procedure for them. Migration 004 upgrades the pre-V2
+   baseline only; see BUSINESS_V2_SCHEMA.md. No historical migrations were edited.
 
 Separate the bootstrap/DDL owner from the runtime role. Grant the runtime role
 only needed table CRUD and identity-sequence usage in the app schema; no

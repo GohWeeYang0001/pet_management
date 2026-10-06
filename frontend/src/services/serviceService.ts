@@ -1,20 +1,23 @@
-import type { Service } from "../types/service";
+import type { Service, ServiceInput, ServiceKind } from "../types/service";
 import { API_BASE_URL, apiFetch, readResponse } from "./api";
 
-export async function getServices(includeInactive = false): Promise<Service[]> {
-    return readResponse<Service[]>(await apiFetch(`${API_BASE_URL}/api/services${includeInactive ? "?include_inactive=true" : ""}`));
+export async function getServices(includeInactive = false, kind?: ServiceKind): Promise<Service[]> {
+    const query = new URLSearchParams();
+    if (includeInactive) query.set("include_inactive", "true");
+    if (kind) query.set("service_kind", kind);
+    return readResponse<Service[]>(await apiFetch(`${API_BASE_URL}/api/services?${query}`));
 }
 
-export async function createService(service_name: string, default_price: number): Promise<Service> {
+export async function createService(input: ServiceInput): Promise<Service> {
     return readResponse<Service>(await apiFetch(`${API_BASE_URL}/api/services`, {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ service_name, default_price }),
+        body: JSON.stringify(input),
     }));
 }
 
-export async function updateService(id: string, service_name: string, default_price: number, is_active: boolean): Promise<Service> {
+export async function updateService(id: string, input: ServiceInput & { is_active: boolean }): Promise<Service> {
     return readResponse<Service>(await apiFetch(`${API_BASE_URL}/api/services/${encodeURIComponent(id)}`, {
         method: "PUT", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ service_name, default_price, is_active }),
+        body: JSON.stringify(input),
     }));
 }

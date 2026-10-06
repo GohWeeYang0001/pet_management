@@ -114,7 +114,6 @@ jobs:
       - name: Initialize empty CI database
         run: |
           psql -X --no-password --set=ON_ERROR_STOP=1 --single-transaction --file=../database/schema.sql
-          psql -X --no-password --set=ON_ERROR_STOP=1 --file=../database/migrations/001_add_expenses_inventory.sql
       - name: Start compiled API and run smoke tests
         run: |
           # This is the compiled entry point used by npm start. Launch Node directly

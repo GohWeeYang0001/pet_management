@@ -1,228 +1,57 @@
 import { logServerError } from "../logging";
 import { Request, Response } from "express";
 import { pool } from "../db";
-import { isDateOnly, isId, isOptionalText, isTime } from "../validation";
+import { isDateOnly, isMoney, isOptionalText, isTime } from "../validation";
+import { isBusinessId } from "../business/catalog";
+import { BusinessError, businessFailure } from "../business/errors";
+import { appointmentReadSql, appointmentResponse } from "../business/appointmentQueries";
+import { bookingExtraKeys, bookingExtras, bookingPets, existingBookingPets, prepareBookingPets, saveBookingPets } from "../business/appointmentBooking";
 
-export async function createAppointment(
-    req: Request,
-    res: Response
-): Promise<void> {
-
-    const {
-        customer_id,
-        appointment_date,
-        start_time,
-        remark,
-        pets,
-        status,
-    } = req.body ?? {};
-
-    if (
-        (status !== undefined && status !== "CONFIRMED") ||
-        !isId(customer_id) ||
-        !isDateOnly(appointment_date) ||
-        !isTime(start_time) ||
-        !isOptionalText(remark) ||
-        !Array.isArray(pets) ||
-        pets.length === 0 ||
-        !pets.every((pet: unknown) => typeof pet === "object" && pet !== null &&
-            isId((pet as { pet_id?: unknown }).pet_id) &&
-            isId((pet as { service_id?: unknown }).service_id) &&
-            isOptionalText((pet as { remark?: unknown }).remark))
-    ) {
-        res.status(400).json({
-            message: "Customer, date, time and at least one pet are required"
-        });
-        return;
-    }
-
-    const client = await pool.connect();
-
+export async function createAppointment(req: Request, res: Response): Promise<void> {
+    const body = req.body ?? {};
+    const { customer_id, appointment_date, start_time, remark, status } = body;
+    let client;
     try {
+        if ((status !== undefined && status !== "CONFIRMED") || !isBusinessId(customer_id)
+            || !isDateOnly(appointment_date) || !isTime(start_time) || !isOptionalText(remark)) {
+            throw new BusinessError(400, "Customer, date, time and at least one pet are required");
+        }
+        const rows = bookingPets(body.pets, false);
+        client = await pool.connect();
         await client.query("BEGIN");
-
-        const customerResult = await client.query(
-            `
-            SELECT customer_id
-            FROM customer
-            WHERE customer_id = $1
-            `,
-            [customer_id]
+        const customer = await client.query("SELECT customer_id FROM customer WHERE customer_id=$1 FOR SHARE",[customer_id]);
+        if (!customer.rowCount) throw new BusinessError(404,"Customer not found");
+        const pets = await prepareBookingPets(client,customer_id,rows);
+        const extras = await bookingExtras(client,customer_id,body);
+        const inserted = await client.query<{ appointment_id: string }>(
+            "INSERT INTO appointment (customer_id,appointment_date,start_time,status,remark," + bookingExtraKeys.join(",") + ") " +
+            "VALUES ($1,$2,$3,'CONFIRMED',$4," + bookingExtraKeys.map((_,i)=>"$"+(i+5)).join(",") + ") RETURNING appointment_id",
+            [customer_id,appointment_date,start_time,remark?.trim() || null,...bookingExtraKeys.map(key=>extras[key])],
         );
-
-        if (customerResult.rows.length === 0) {
-            await client.query("ROLLBACK");
-
-            res.status(404).json({
-                message: "Customer not found"
-            });
-            return;
-        }
-
-        const appointmentResult = await client.query(
-            `
-            INSERT INTO appointment (
-                customer_id,
-                appointment_date,
-                start_time,
-                status,
-                remark
-            )
-            VALUES ($1, $2, $3, 'CONFIRMED', $4)
-            RETURNING *
-            `,
-            [
-                customer_id,
-                appointment_date,
-                start_time,
-                remark || null
-            ]
-        );
-
-        const appointment = appointmentResult.rows[0];
-
-        for (const pet of pets) {
-
-            const petResult = await client.query(
-                `
-                SELECT pet_id
-                FROM pet
-                WHERE pet_id = $1
-                AND customer_id = $2
-                `,
-                [pet.pet_id, customer_id]
-            );
-
-            if (petResult.rows.length === 0) {
-                await client.query("ROLLBACK");
-                res.status(400).json({ message: "Choose pets belonging to this customer" });
-                return;
-            }
-
-            const serviceResult = await client.query(
-                "SELECT 1 FROM service WHERE service_id = $1 AND is_active = TRUE",
-                [pet.service_id],
-            );
-            if (serviceResult.rowCount === 0) {
-                await client.query("ROLLBACK");
-                res.status(400).json({ message: "Choose an active service" });
-                return;
-            }
-
-            await client.query(
-                `
-                INSERT INTO appointment_pet (
-                    appointment_id,
-                    pet_id,
-                    service_id,
-                    remark
-                )
-                VALUES ($1, $2, $3, $4)
-                `,
-                [
-                    appointment.appointment_id,
-                    pet.pet_id,
-                    pet.service_id,
-                    pet.remark || null
-                ]
-            );
-        }
-
+        const id = inserted.rows[0].appointment_id;
+        await saveBookingPets(client,id,pets,false);
         await client.query("COMMIT");
-
-        res.status(201).json({
-            message: "Appointment created successfully",
-            appointment_id: appointment.appointment_id
-        });
-
+        res.status(201).json({message:"Appointment created successfully",appointment_id:id});
     } catch (error) {
-
-        await client.query("ROLLBACK");
-
-        logServerError("Error creating appointment:", error);
-
-        res.status(500).json({
-            message: "Failed to create appointment"
-        });
-
-    } finally {
-        client.release();
-    }
+        if (client) await client.query("ROLLBACK");
+        businessFailure(res,error,"Error creating appointment:");
+    } finally { client?.release(); }
 }
 
-
-
-
-export async function getAppointments(
-    req: Request,
-    res: Response
-): Promise<void> {
-
+export async function getAppointments(_req: Request, res: Response): Promise<void> {
     try {
-        const result = await pool.query(`
-            SELECT
-                a.appointment_id,
-                TO_CHAR(a.appointment_date, 'YYYY-MM-DD') AS appointment_date,
-                a.start_time,
-                a.status,
-                a.remark,
+        const result = await pool.query(appointmentReadSql + " ORDER BY a.appointment_date,a.start_time,a.appointment_id");
+        res.json(result.rows.map(appointmentResponse));
+    } catch (error) { businessFailure(res,error,"Error fetching appointments:"); }
+}
 
-                c.customer_id,
-                c.customer_name,
-                c.customer_hp,
-
-                COALESCE(
-                    json_agg(
-                        json_build_object(
-                            'appointment_pet_id', ap.appointment_pet_id,
-                            'pet_id', p.pet_id,
-                            'pet_name', p.pet_name,
-                            'pet_type', p.pet_type,
-                            'service_id', s.service_id,
-                            'service_name', s.service_name,
-                            'default_price', s.default_price,
-                            'amount', ap.amount,
-                            'remark', ap.remark
-                        )
-                    ) FILTER (
-                        WHERE ap.appointment_pet_id IS NOT NULL
-                    ),
-                    '[]'
-                ) AS pets
-
-            FROM appointment a
-
-            JOIN customer c
-                ON a.customer_id = c.customer_id
-
-            LEFT JOIN appointment_pet ap
-                ON a.appointment_id = ap.appointment_id
-
-            LEFT JOIN pet p
-                ON ap.pet_id = p.pet_id
-
-            LEFT JOIN service s
-                ON ap.service_id = s.service_id
-
-            GROUP BY
-                a.appointment_id,
-                c.customer_id
-
-            ORDER BY
-                a.appointment_date,
-                a.start_time
-        `);
-
-        res.json(result.rows);
-
-    } catch (error) {
-
-        logServerError("Error fetching appointments:", error);
-
-        res.status(500).json({
-            message: "Internal server error"
-        });
-    }
+export async function getAppointmentById(req: Request, res: Response): Promise<void> {
+    if (!isBusinessId(req.params.id)) { res.status(400).json({message:"Invalid appointment ID"}); return; }
+    try {
+        const result = await pool.query(appointmentReadSql + " WHERE a.appointment_id=$1",[req.params.id]);
+        if (!result.rowCount) { res.status(404).json({message:"Appointment not found"}); return; }
+        res.json(appointmentResponse(result.rows[0]));
+    } catch (error) { businessFailure(res,error,"Error fetching appointment:"); }
 }
 
 interface CompletionPet {
@@ -235,7 +64,7 @@ export async function completeAppointment(req: Request, res: Response): Promise<
     const { id } = req.params;
     const pets: unknown = req.body?.pets;
 
-    if (!/^\d+$/.test(String(id)) || !Array.isArray(pets) || pets.length === 0) {
+    if (!isBusinessId(id) || !Array.isArray(pets) || pets.length === 0) {
         res.status(400).json({ message: "A valid appointment and at least one pet are required" });
         return;
     }
@@ -245,11 +74,7 @@ export async function completeAppointment(req: Request, res: Response): Promise<
         const entry = pet as Partial<CompletionPet>;
         return Number.isSafeInteger(entry.appointment_pet_id) &&
             Number(entry.appointment_pet_id) > 0 &&
-            typeof entry.amount === "number" &&
-            Number.isFinite(entry.amount) &&
-            entry.amount >= 0 &&
-            entry.amount <= 99999999.99 &&
-            /^(?:0|[1-9]\d*)(?:\.\d{1,2})?$/.test(String(entry.amount)) &&
+            isMoney(entry.amount) &&
             (entry.remark === undefined || entry.remark === null || typeof entry.remark === "string");
     });
 
@@ -307,7 +132,8 @@ export async function completeAppointment(req: Request, res: Response): Promise<
 
         await client.query(
             `UPDATE appointment
-             SET status = 'COMPLETED', updated_at = CURRENT_TIMESTAMP
+             SET status = 'COMPLETED', updated_at = CURRENT_TIMESTAMP,
+                 payment_tracking_started_at = CURRENT_TIMESTAMP
              WHERE appointment_id = $1`,
             [id],
         );
@@ -322,125 +148,45 @@ export async function completeAppointment(req: Request, res: Response): Promise<
     }
 }
 
-interface EditablePet {
-    appointment_pet_id?: string | number;
-    pet_id: string | number;
-    service_id: string | number;
-    remark?: string | null;
-}
 
 export async function editAppointment(req: Request, res: Response): Promise<void> {
     const id = req.params.id;
-    const { appointment_date, start_time, remark, pets } = req.body ?? {};
-    if (!isId(id) || !isDateOnly(appointment_date) || !isTime(start_time) ||
-        !isOptionalText(remark) || !Array.isArray(pets) || pets.length === 0 ||
-        !pets.every((pet: unknown) => {
-            if (typeof pet !== "object" || pet === null) return false;
-            const row = pet as Partial<EditablePet>;
-            return (row.appointment_pet_id == null || isId(row.appointment_pet_id)) &&
-                isId(row.pet_id) && isId(row.service_id) && isOptionalText(row.remark);
-        })) {
-        res.status(400).json({ message: "Valid date, time and at least one pet with a service are required" });
-        return;
-    }
-
-    const rows = pets as EditablePet[];
-    const existingIds = rows.filter((row) => row.appointment_pet_id != null)
-        .map((row) => String(row.appointment_pet_id));
-    if (new Set(existingIds).size !== existingIds.length) {
-        res.status(400).json({ message: "Appointment pet rows must be unique" });
-        return;
-    }
-
-    const client = await pool.connect();
+    const body = req.body ?? {};
+    const {appointment_date,start_time,remark} = body;
+    let client;
     try {
+        if (!isBusinessId(id) || !isDateOnly(appointment_date) || !isTime(start_time) || !isOptionalText(remark)) {
+            throw new BusinessError(400,"Valid date, time and at least one pet with a service are required");
+        }
+        const rows = bookingPets(body.pets,true);
+        client = await pool.connect();
         await client.query("BEGIN");
-        const found = await client.query(
-            "SELECT customer_id, status FROM appointment WHERE appointment_id = $1 FOR UPDATE",
-            [id],
-        );
-        if (found.rowCount === 0) {
-            await client.query("ROLLBACK");
-            res.status(404).json({ message: "Appointment not found" });
-            return;
-        }
-        if (found.rows[0].status !== "CONFIRMED") {
-            await client.query("ROLLBACK");
-            res.status(409).json({ message: "Only confirmed appointments can be edited" });
-            return;
-        }
-
-        const current = await client.query(
-            "SELECT appointment_pet_id, service_id FROM appointment_pet WHERE appointment_id = $1 FOR UPDATE",
-            [id],
-        );
-        const currentRows = new Map<string, string>(current.rows.map((row: {
-            appointment_pet_id: string; service_id: string;
-        }) => [String(row.appointment_pet_id), String(row.service_id)]));
-        if (existingIds.some((rowId) => !currentRows.has(rowId))) {
-            await client.query("ROLLBACK");
-            res.status(400).json({ message: "An appointment pet row does not belong to this appointment" });
-            return;
-        }
-
-        const keptIds = [...existingIds];
-        for (const row of rows) {
-            const pet = await client.query(
-                "SELECT 1 FROM pet WHERE pet_id = $1 AND customer_id = $2",
-                [row.pet_id, found.rows[0].customer_id],
-            );
-            const service = await client.query(
-                "SELECT is_active FROM service WHERE service_id = $1",
-                [row.service_id],
-            );
-            if (pet.rowCount === 0 || service.rowCount === 0 ||
-                (!service.rows[0].is_active &&
-                    currentRows.get(String(row.appointment_pet_id)) !== String(row.service_id))) {
-                await client.query("ROLLBACK");
-                res.status(400).json({ message: "Choose pets belonging to this customer and active services" });
-                return;
-            }
-        }
-
+        const result = await client.query("SELECT * FROM appointment WHERE appointment_id=$1 FOR UPDATE",[id]);
+        if (!result.rowCount) throw new BusinessError(404,"Appointment not found");
+        const current = result.rows[0];
+        if (current.status !== "CONFIRMED") throw new BusinessError(409,"Only confirmed appointments can be edited");
+        await client.query("SELECT customer_id FROM customer WHERE customer_id=$1 FOR SHARE",[current.customer_id]);
+        const previousPets = await existingBookingPets(client,String(id));
+        const pets = await prepareBookingPets(client,current.customer_id,rows,previousPets);
+        const extras = await bookingExtras(client,current.customer_id,body,current);
         await client.query(
-            `UPDATE appointment SET appointment_date = $1, start_time = $2,
-             remark = $3, updated_at = CURRENT_TIMESTAMP WHERE appointment_id = $4`,
-            [appointment_date, start_time, remark?.trim() || null, id],
+            "UPDATE appointment SET appointment_date=$1,start_time=$2,remark=$3,updated_at=CURRENT_TIMESTAMP," +
+            bookingExtraKeys.map((key,i)=>key+"=$"+(i+4)).join(",") +
+            " WHERE appointment_id=$"+(bookingExtraKeys.length+4),
+            [appointment_date,start_time,remark?.trim() || null,...bookingExtraKeys.map(key=>extras[key]),id],
         );
-        for (const row of rows) {
-            if (row.appointment_pet_id != null) {
-                await client.query(
-                    `UPDATE appointment_pet SET pet_id = $1, service_id = $2, remark = $3
-                     WHERE appointment_pet_id = $4 AND appointment_id = $5`,
-                    [row.pet_id, row.service_id, row.remark?.trim() || null, row.appointment_pet_id, id],
-                );
-            } else {
-                const inserted = await client.query(
-                    `INSERT INTO appointment_pet (appointment_id, pet_id, service_id, remark)
-                     VALUES ($1, $2, $3, $4) RETURNING appointment_pet_id`,
-                    [id, row.pet_id, row.service_id, row.remark?.trim() || null],
-                );
-                keptIds.push(String(inserted.rows[0].appointment_pet_id));
-            }
-        }
-        await client.query(
-            "DELETE FROM appointment_pet WHERE appointment_id = $1 AND NOT (appointment_pet_id = ANY($2::bigint[]))",
-            [id, keptIds],
-        );
+        await saveBookingPets(client,String(id),pets,true);
         await client.query("COMMIT");
-        res.json({ message: "Appointment updated", appointment_id: id });
+        res.json({message:"Appointment updated",appointment_id:id});
     } catch (error) {
-        await client.query("ROLLBACK");
-        logServerError("Error editing appointment:", error);
-        res.status(500).json({ message: "Failed to update appointment" });
-    } finally {
-        client.release();
-    }
+        if (client) await client.query("ROLLBACK");
+        businessFailure(res,error,"Error editing appointment:");
+    } finally { client?.release(); }
 }
 
 export async function cancelAppointment(req: Request, res: Response): Promise<void> {
     const id = req.params.id;
-    if (!isId(id)) {
+    if (!isBusinessId(id)) {
         res.status(400).json({ message: "Invalid appointment ID" });
         return;
     }

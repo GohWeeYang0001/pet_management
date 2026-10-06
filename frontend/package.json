@@ -7,6 +7,8 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
+    "test:business-v2": "node --test tests/businessV2.test.mjs",
+    "qa:business-v2": "node tests/qaServer.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

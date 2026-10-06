@@ -1,0 +1,35 @@
+/* Business V2 additions only. Existing shell/calendar/sheet/date-time/mobile rules
+   remain untouched; these selectors cannot change global density or typography. */
+.v2-location { min-width: 0; overflow-wrap: anywhere; }
+.v2-map-link { display: inline-flex; align-items: center; text-decoration: none; }
+.v2-actions, .v2-service-filters { display: flex; flex-wrap: wrap; gap: 4px 12px; }
+.v2-actions .text-button { margin: 0; }
+.v2-service-filters button { min-height: 44px; padding: 6px 10px; border: 1px solid #d0d5dd; border-radius: 10px; color: #344054; background: #fff; font: inherit; font-size: .875rem; }
+.v2-service-filters button[aria-pressed="true"] { color: #175cd3; border-color: #84adff; background: #eff6ff; }
+.v2-addon-options { display: grid; min-width: 0; margin: 0; padding: 0; border: 0; gap: 2px; }
+.v2-addon-options legend { padding: 0; margin-bottom: 4px; color: #344054; font-size: .8125rem; }
+.sheet-form .v2-addon-choice { min-height: 44px; gap: 8px; padding: 2px 0; }
+.sheet-form .v2-addon-choice input { flex: 0 0 20px; width: 20px; height: 20px; padding: 0; }
+.v2-addon-choice span { min-width: 0; overflow-wrap: anywhere; }
+.v2-addon-choice span:nth-of-type(1) { flex: 1; }
+.v2-addon-choice span:nth-of-type(2) { flex: 0 0 auto; max-width: 45%; font-weight: 500; }
+.v2-addon-choice small { display: block; font-weight: 400; }
+.v2-price-line { display: flex; min-width: 0; justify-content: space-between; align-items: baseline; gap: 8px; margin: 0; color: #475467; font-size: .8125rem; line-height: 1.4; }
+.v2-price-line > :first-child { min-width: 0; overflow-wrap: anywhere; }
+.v2-price-line > :last-child { flex-shrink: 0; max-width: 50%; overflow-wrap: anywhere; text-align: right; }
+.v2-quote { margin: 0; color: #175cd3; font-size: .875rem; font-weight: 700; overflow-wrap: anywhere; }
+.v2-address-row, .v2-history-pet { min-width: 0; padding: 6px 0; border-bottom: 1px solid #eaecf0; }
+.v2-history-pet h3 { margin: 0 0 4px; font-size: .875rem; }
+.v2-details { display: grid; min-width: 0; gap: 6px; }
+
+/* Booking-only pastel headers. White bodies and semantic status colors stay separate. */
+.v2-section-customer { --v2-header-tint:#f2f7fc; --v2-header-accent:#b7cee4; }
+.v2-section-address { --v2-header-tint:#f3f8f5; --v2-header-accent:#bfd7c7; }
+.v2-section-pets { --v2-header-tint:#fbf6ef; --v2-header-accent:#decab4; }
+.v2-section-travel { --v2-header-tint:#f7f4fb; --v2-header-accent:#d0c4e0; }
+.sheet-form .v2-section-heading { display:flex; align-items:center; justify-content:space-between; gap:8px; min-height:32px; padding:0 8px; border-left:3px solid var(--v2-header-accent,#d0d5dd); border-radius:6px; background:var(--v2-header-tint,#f5f6f8); }
+.sheet-form .v2-section-heading h3 { margin:0; font-size:.9375rem; font-weight:750; color:#344054; line-height:1.35; }
+.v2-pet-section, .v2-history-pages { display:grid; min-width:0; gap:8px; }
+.sheet-form .v2-pet-card { padding:8px; border-color:#eef0f3; border-radius:8px; background:#fafbfc; box-shadow:none; }
+.sheet-form .v2-pet-card h4 { margin:0; font-size:.875rem; font-weight:650; color:#475467; overflow-wrap:anywhere; }
+.v2-customer-history { min-width:0; }

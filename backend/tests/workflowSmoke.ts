@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { pool } from "../src/db";
 import { baseUrl, createTestUser, loginTestUser, withSession } from "./authFixture";
+import { runBusinessV2Workflow } from "./businessV2Smoke";
 const marker = `Codex workflow QA ${randomUUID()}`;
 let customerId: string | null = null;
 let otherCustomerId: string | null = null;
@@ -10,6 +11,7 @@ let expenseId: string | null = null;
 const extraExpenseIds: Array<{ id: string; itemName: string }> = [];
 let inventoryId: string | null = null;
 let serviceId: string | null = null;
+let travelOptionId: string | null = null;
 let authUser: Awaited<ReturnType<typeof createTestUser>> | null = null;
 let sessionCookie = "";
 
@@ -25,7 +27,8 @@ async function expectStatus(path: string, init: RequestInit, status: number): Pr
 }
 
 function json(method: string, body: object): RequestInit {
-    return { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) };
+    const input = method === "POST" && "appointment_date" in body ? {...body,travel_fee_option_id:travelOptionId,travel_fee_label:marker,travel_fee_amount:0} : body;
+    return { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) };
 }
 
 async function cleanup(): Promise<void> {
@@ -79,6 +82,10 @@ async function cleanup(): Promise<void> {
             if (owned.rowCount !== 1) throw new Error("QA service marker did not match; cleanup stopped");
             await client.query("DELETE FROM service WHERE service_id = $1 AND service_name = $2", [serviceId, marker]);
         }
+        if (travelOptionId) {
+            const owned = await client.query("DELETE FROM travel_fee_option WHERE travel_fee_option_id=$1 AND label=$2 RETURNING travel_fee_option_id",[travelOptionId,marker]);
+            if (owned.rowCount !== 1) throw new Error("QA travel option marker mismatch");
+        }
         await client.query("COMMIT");
     } catch (error) {
         await client.query("ROLLBACK");
@@ -92,6 +99,8 @@ async function main(): Promise<void> {
     try {
         authUser = await createTestUser();
         sessionCookie = await loginTestUser(authUser);
+        await runBusinessV2Workflow(sessionCookie);
+        travelOptionId = (await request<{travel_fee_option_id:string}>("/api/travel-fee-options",json("POST",{label:marker,amount:0,is_active:true,sort_order:999}))).travel_fee_option_id;
         const service = await request<{ service_id: string }>("/api/services", json("POST", {
             service_name: marker, default_price: 10,
         }));
