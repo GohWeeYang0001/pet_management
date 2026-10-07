@@ -1,19 +1,19 @@
-import type { Appointment } from "../types/appointment";
+import type { Appointment, AppointmentExtrasInput } from "../types/appointment";
 import { API_BASE_URL, apiFetch, readResponse } from "./api";
 
-export interface NewAppointmentInput {
+export interface NewAppointmentInput extends AppointmentExtrasInput {
     customer_id: string;
     appointment_date: string;
     start_time: string;
     remark: string | null;
-    pets: Array<{ pet_id: string; service_id: string; remark: string | null }>;
+    pets: Array<{ pet_id: string; service_id: string; remark: string | null; addons?: Array<{ service_id: string }> }>;
 }
 
 export interface CompletionInput {
     pets: Array<{ appointment_pet_id: number; amount: number; remark: string | null }>;
 }
 
-export interface EditAppointmentInput {
+export interface EditAppointmentInput extends AppointmentExtrasInput {
     appointment_date: string;
     start_time: string;
     remark: string | null;
@@ -22,6 +22,7 @@ export interface EditAppointmentInput {
         pet_id: string;
         service_id: string;
         remark: string | null;
+        addons?: Array<{ service_id: string }>;
     }>;
 }
 

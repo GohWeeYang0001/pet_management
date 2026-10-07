@@ -3,15 +3,17 @@ import RevenuePage from "./RevenuePage";
 import ExpensesPage from "./ExpensesPage";
 import InventoryPage from "./InventoryPage";
 import ServicesPage from "./ServicesPage";
+import TravelFeesPage from "./TravelFeesPage";
 import type { AuthUser } from "../types/auth";
 import { roleLabels } from "../utils/displayLabels";
 
-type Section = "revenue" | "expenses" | "inventory" | "services";
+type Section = "revenue" | "expenses" | "inventory" | "services" | "travel";
 const sections: Array<{ key: Section; label: string; description: string }> = [
     { key: "revenue", label: "营业额", description: "查看每月经营状况" },
     { key: "expenses", label: "支出", description: "记录业务支出" },
     { key: "inventory", label: "库存", description: "管理物品及库存不足提醒" },
     { key: "services", label: "服务管理", description: "管理宠物美容服务" },
+    { key: "travel", label: "上门交通费管理", description: "管理预约交通费选项" },
 ];
 
 export default function MorePage({ user, onLogout }: { user: AuthUser; onLogout: () => Promise<void> }) {
@@ -34,6 +36,7 @@ export default function MorePage({ user, onLogout }: { user: AuthUser; onLogout:
         {section === "expenses" && <ExpensesPage />}
         {section === "inventory" && <InventoryPage />}
         {section === "services" && <ServicesPage />}
+        {section === "travel" && <TravelFeesPage />}
         {!section && <main className="business-page"><div className="business-list">
             {sections.map((item) => <button className="business-row" type="button" key={item.key} onClick={() => setSection(item.key)}>
                 <span><strong>{item.label}</strong><small>{item.description}</small></span><span aria-hidden="true">›</span>

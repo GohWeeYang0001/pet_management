@@ -33,8 +33,8 @@ key and indexes for user/expiry lookup. It contains no user credentials and does
 not change business tables. It has already been applied to this local database.
 For another existing database, execute that migration once after 001 and 002.
 For a fresh production database follow the single bootstrap procedure in
-`AWS_DEPLOYMENT.md`: schema.sql then migration 001 only. The current schema
-already includes 002/003; do not apply those again after that bootstrap.
+`AWS_DEPLOYMENT.md`: schema.sql alone. The complete schema includes migrations
+001–004; do not apply historical migrations again after that bootstrap.
 
 Run backend commands from `C:\htdocs\pet_management\backend`:
 
@@ -142,7 +142,7 @@ typecheck, typecheck:tools, build, test:auth, test:workflow and test:deployment.
 Newer/overlapping runs for the same source repository/branch cancel older runs.
 
 The backend job initializes a temporary PostgreSQL 16 service database with
-schema.sql then migration 001 only, without seed data or migrations 002/003.
+schema.sql alone, without demo seed data or separately applying migrations.
 It starts the compiled API, waits for /api/health, runs the existing tests and
 stops the API on exit. Tests clean up only their own records; the database is
 discarded with the runner. AUTH_SECRET is generated per run, masked in logs and

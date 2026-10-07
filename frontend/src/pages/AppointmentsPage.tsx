@@ -71,7 +71,7 @@ function AppointmentsPage() {
                         <div key={pet.appointment_pet_id}>
                             <p>
                                 宠物： {pet.pet_name}
-                                {pet.pet_type && ` (${displayPetType(pet.pet_type)})`}
+                                {pet.pet_type && ` （品种：${displayPetType(pet.pet_type)}）`}
                             </p>
 
                             <p>

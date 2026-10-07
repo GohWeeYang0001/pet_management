@@ -15,12 +15,13 @@ export interface CustomerOverview {
     }>;
     completed_visits: number;
     total_spending: number;
-    appointment_history: Array<{
-        appointment_id: string;
-        appointment_date: string;
-        start_time: string;
-        status: "CONFIRMED" | "COMPLETED" | "CANCELLED";
-        amount: number;
-        pets: Array<{ pet_name: string; service_name: string; amount: number | null }>;
-    }>;
+}
+import type { Appointment } from "./appointment";
+
+export interface CustomerAppointmentPage {
+    appointments: Appointment[];
+    limit: number;
+    offset: number;
+    has_more: boolean;
+    next_offset: number | null;
 }

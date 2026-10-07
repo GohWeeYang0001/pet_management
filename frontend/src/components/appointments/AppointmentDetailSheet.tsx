@@ -1,7 +1,8 @@
 import BottomSheet from "../sheets/BottomSheet";
 import type { Appointment } from "../../types/appointment";
-import { appointmentStatusLabels, displayPetType } from "../../utils/displayLabels";
-import { formatAppointmentDate, formatAppointmentTime, formatMoney } from "../../utils/appointmentFormat";
+import { appointmentStatusLabels } from "../../utils/displayLabels";
+import { formatAppointmentDate, formatAppointmentTime } from "../../utils/appointmentFormat";
+import AppointmentV2Details from "./AppointmentV2Details";
 
 interface Props {
     appointment: Appointment;
@@ -22,18 +23,7 @@ function AppointmentDetailSheet({ appointment, onClose, onComplete, onEdit, onCa
                 <span className={`status-badge status-${appointment.status.toLowerCase()}`}>{appointmentStatusLabels[appointment.status]}</span>
                 {appointment.remark && <p><strong>预约备注：</strong> {appointment.remark}</p>}
             </div>
-            <div className="detail-pets">
-                {appointment.pets.map((pet) => (
-                    <section className="detail-pet" key={pet.appointment_pet_id}>
-                        <h3>{pet.pet_name}</h3>
-                        {pet.pet_type && <p>{displayPetType(pet.pet_type)}</p>}
-                        <p>{pet.service_name}</p>
-                        <p>默认价格： {formatMoney(pet.default_price)}</p>
-                        <p>实际金额： {pet.amount === null ? "尚未完成" : formatMoney(pet.amount)}</p>
-                        {pet.remark && <p><strong>备注：</strong> {pet.remark}</p>}
-                    </section>
-                ))}
-            </div>
+            <AppointmentV2Details appointment={appointment} />
             {appointment.status === "CONFIRMED" && (
                 <>
                     <button className="primary-button" type="button" onClick={onComplete} disabled={busy}>完成服务</button>

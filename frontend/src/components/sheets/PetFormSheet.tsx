@@ -33,7 +33,7 @@ export default function PetFormSheet({ customerId, pet, onClose, onSaved }: Prop
     return <BottomSheet title={pet ? "编辑宠物" : "新增宠物"} subtitle={pet?.pet_name} onClose={onClose}>
         <div className="sheet-form"><div className="form-card">
             <label>宠物名称<input value={name} onChange={(event) => setName(event.target.value)} maxLength={100} required /></label>
-            <label>宠物类型<input value={type} onChange={(event) => setType(event.target.value)} maxLength={50} /></label>
+            <label>品种（选填）<input value={type} onChange={(event) => setType(event.target.value)} maxLength={50} /></label>
             <label>备注<textarea rows={3} value={remark} onChange={(event) => setRemark(event.target.value)} /></label>
         </div>
             {error && <p className="form-error" role="alert">{error}</p>}

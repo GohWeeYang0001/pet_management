@@ -1,4 +1,4 @@
-import type { Customer, CustomerOverview } from "../types/customer";
+import type { Customer, CustomerOverview, CustomerAppointmentPage } from "../types/customer";
 import { API_BASE_URL, apiFetch, readResponse } from "./api";
 
 export async function getCustomers(search = ""): Promise<Customer[]> {
@@ -24,4 +24,8 @@ export async function updateCustomer(id: string, customer_name: string, customer
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ customer_name, customer_hp }),
     }));
+}
+
+export async function getCustomerAppointments(id: string,limit = 10,offset = 0): Promise<CustomerAppointmentPage> {
+    return readResponse(await apiFetch(`${API_BASE_URL}/api/customers/${encodeURIComponent(id)}/appointments?limit=${limit}&offset=${offset}`));
 }

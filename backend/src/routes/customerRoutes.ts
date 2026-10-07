@@ -7,14 +7,17 @@ import {
     updateCustomer,
     deleteCustomer
 } from "../controllers/customerController";
-import { getCustomerOverview } from "../controllers/customerController";
+import { getCustomerOverview, getCustomerAppointments } from "../controllers/customerController";
 import petRoutes from "./petRoutes";
+import customerAddressRoutes from "./customerAddressRoutes";
 
 const router = Router();
 
 router.get("/", getCustomers);
 router.use("/:customerId/pets", petRoutes);
+router.use("/:customerId/addresses", customerAddressRoutes);
 router.get("/:id/overview", getCustomerOverview);
+router.get("/:id/appointments", getCustomerAppointments);
 
 router.get("/:id", getCustomerById);
 

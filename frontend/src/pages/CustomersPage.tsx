@@ -1,12 +1,17 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import BottomSheet from "../components/sheets/BottomSheet";
 import PetFormSheet from "../components/sheets/PetFormSheet";
+import CustomerAddresses from "../components/addresses/CustomerAddresses";
+import CustomerAppointmentHistory from "../components/customers/CustomerAppointmentHistory";
+import { createCustomerHistoryStore } from "../utils/customerHistoryStore";
 import { createCustomer, getCustomerOverview, getCustomers, updateCustomer } from "../services/customerService";
 import type { Customer, CustomerOverview } from "../types/customer";
-import { appointmentStatusLabels, displayPetType } from "../utils/displayLabels";
-import { formatAppointmentDate, formatAppointmentTime, formatMoney } from "../utils/appointmentFormat";
+import { displayPetType } from "../utils/displayLabels";
+import { formatMoney } from "../utils/appointmentFormat";
 
 export default function CustomersPage() {
+    const [historyStore] = useState(() => createCustomerHistoryStore());
+    const overviewGeneration = useRef(0);
     const [customers, setCustomers] = useState<Customer[]>([]);
     const [search, setSearch] = useState("");
     const [selected, setSelected] = useState<Customer | null>(null);
@@ -34,9 +39,10 @@ export default function CustomersPage() {
     async function refresh() { setCustomers(await getCustomers(search)); }
 
     async function openCustomer(customer: Customer) {
+        const generation = ++overviewGeneration.current;
         setSelected(customer); setOverview(null); setError("");
-        try { setOverview(await getCustomerOverview(customer.customer_id)); }
-        catch { setError("客户资料加载失败，请关闭后重试。"); }
+        try { const data=await getCustomerOverview(customer.customer_id); if (generation === overviewGeneration.current) setOverview(data); }
+        catch { if (generation === overviewGeneration.current) setError("客户资料加载失败，请关闭后重试。"); }
     }
 
     function openForm(nextMode: "add" | "edit") {
@@ -54,13 +60,14 @@ export default function CustomersPage() {
                 : await createCustomer(name.trim(), phone.trim());
             await refresh();
             setMode(null);
-            if (selected) { setSelected(saved); setOverview(await getCustomerOverview(saved.customer_id)); }
+            if (selected) { historyStore.invalidate(selected.customer_id); setSelected(saved); setOverview(await getCustomerOverview(saved.customer_id)); }
         } catch (failure) { console.error(failure); setFormError("客户保存失败，请检查资料后重试。"); }
         finally { setSaving(false); }
     }
 
     async function refreshOverview() {
         if (!selected) return;
+        historyStore.invalidate(selected.customer_id);
         setOverview(await getCustomerOverview(selected.customer_id));
         await refresh();
         setPetForm(null);
@@ -79,23 +86,19 @@ export default function CustomersPage() {
                 </button>)}
             </div>}
         </main>
-        {selected && !mode && !petForm && <BottomSheet title="客户资料" subtitle={selected.customer_name} onClose={() => { setSelected(null); setOverview(null); }}>
+        {selected && !mode && !petForm && <BottomSheet title="客户资料" subtitle={selected.customer_name} onClose={() => { overviewGeneration.current++; setSelected(null); setOverview(null); }}>
             {!overview ? <p className={error ? "form-error" : "form-hint"} role={error ? "alert" : undefined}>{error || "资料加载中..."}</p> : <div className="sheet-form">
                 <div className="detail-summary"><h3>{overview.customer.customer_name}</h3><a href={`tel:${overview.customer.customer_hp}`}>{overview.customer.customer_hp}</a></div>
                 <button className="secondary-button" type="button" onClick={() => openForm("edit")}>编辑客户</button>
                 <div className="summary-grid"><div className="summary-card"><small>已完成到店次数</small><strong>{overview.completed_visits}</strong></div><div className="summary-card"><small>累计消费</small><strong>{formatMoney(overview.total_spending)}</strong></div></div>
                 <div className="form-card"><h3>宠物</h3>{overview.pets.length ? overview.pets.map((pet) => <div className="pet-management-row" key={pet.pet_id}>
-                    <div><strong>{pet.pet_name}</strong><p>{displayPetType(pet.pet_type) || "未填写类型"}</p><p>{pet.pet_remark || "暂无备注"}</p></div>
+                    <div><strong>{pet.pet_name}</strong><p>品种：{displayPetType(pet.pet_type) || "未填写"}</p><p>{pet.pet_remark || "暂无备注"}</p></div>
                     <button className="text-button" type="button" onClick={() => setPetForm(pet)}>编辑</button>
                 </div>) : <p className="form-hint">暂无宠物。</p>}
                     <button className="text-button" type="button" onClick={() => setPetForm("add")}>+ 添加宠物</button>
                 </div>
-                <h3 className="section-heading">预约记录</h3>
-                {overview.appointment_history.length ? overview.appointment_history.map((entry) => <div className="form-card" key={entry.appointment_id}>
-                    <div className="split-line"><strong>{formatAppointmentDate(entry.appointment_date)} · {formatAppointmentTime(entry.start_time)}</strong><span className={`status-badge status-${entry.status.toLowerCase()}`}>{appointmentStatusLabels[entry.status]}</span></div>
-                    {entry.pets.map((pet, index) => <p className="compact-line" key={index}>{pet.pet_name} · {pet.service_name}{pet.amount === null ? "" : ` · ${formatMoney(pet.amount)}`}</p>)}
-                    <p className="compact-line">总计： {entry.status === "COMPLETED" ? formatMoney(entry.amount) : "尚未收费"}</p>
-                </div>) : <p className="form-hint">暂无预约记录。</p>}
+                <CustomerAddresses key={selected.customer_id} customerId={selected.customer_id} />
+                <CustomerAppointmentHistory key={`history-${selected.customer_id}`} customerId={selected.customer_id} store={historyStore} />
             </div>}
         </BottomSheet>}
         {selected && petForm && <PetFormSheet customerId={selected.customer_id} pet={petForm === "add" ? undefined : petForm}

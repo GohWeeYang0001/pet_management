@@ -15,6 +15,7 @@ import serviceRoutes from "./routes/serviceRoutes";
 import reportRoutes from "./routes/reportRoutes";
 import expenseRoutes from "./routes/expenseRoutes";
 import inventoryRoutes from "./routes/inventoryRoutes";
+import travelFeeRoutes from "./routes/travelFeeRoutes";
 
 
 const app = express();
@@ -52,6 +53,7 @@ app.use("/api/services", serviceRoutes);
 app.use("/api/reports", reportRoutes);
 app.use("/api/expenses", expenseRoutes);
 app.use("/api/inventory", inventoryRoutes);
+app.use("/api/travel-fee-options", travelFeeRoutes);
 
 const errorHandler: ErrorRequestHandler = (error: unknown, _req, res, _next) => {
     logServerError("Request processing failed.", error);
