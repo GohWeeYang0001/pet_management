@@ -1,81 +1,35 @@
 import { logServerError } from "../logging";
 import { Request, Response } from "express";
 import { pool } from "../db";
+import { isText } from "../validation";
+import { customerManagementColumns,petManagementColumns } from "../business/recordManagement";
 import { isBusinessId } from "../business/catalog";
 import { customerChargesCte, appointmentPageReadSql, appointmentResponse } from "../business/appointmentQueries";
 
-export async function getCustomers(
-    req: Request,
-    res: Response
-): Promise<void> {
-    const search = typeof req.query.search === "string" ? req.query.search.trim() : "";
+export async function getCustomers(req: Request,res: Response): Promise<void> {
+    const search=typeof req.query.search==="string" ? req.query.search.trim() : "";
     try {
-        const result = await pool.query(`
-            SELECT
-                c.customer_id, c.customer_name, c.customer_hp, c.created_at,
-                COUNT(p.pet_id)::integer AS pet_count
-            FROM customer c
-            LEFT JOIN pet p ON p.customer_id = c.customer_id
-            WHERE $1 = '' OR c.customer_name ILIKE '%' || $1 || '%'
-                OR c.customer_hp ILIKE '%' || $1 || '%'
-            GROUP BY c.customer_id
-            ORDER BY c.customer_name, c.customer_id
-        `, [search]);
-
+        const result=await pool.query(`SELECT ${customerManagementColumns} FROM customer c
+            WHERE ($1='' OR c.customer_name ILIKE '%' || $1 || '%' OR c.customer_hp ILIKE '%' || $1 || '%')
+              AND ($2::boolean OR NOT c.is_archived) ORDER BY c.customer_name,c.customer_id`,[search,req.query.include_archived==="true"]);
         res.json(result.rows);
-    } catch (error) {
-        logServerError("Error fetching customers:", error);
-
-        res.status(500).json({
-            message: "Internal server error"
-        });
-    }
+    } catch(error) {logServerError("Error fetching customers:",error);res.status(500).json({message:"Failed to load customers"});}
 }
-
-export async function getCustomerById(
-    req: Request,
-    res: Response
-): Promise<void> {
-    const { id } = req.params;
-
+export async function getCustomerById(req: Request,res: Response): Promise<void> {
+    if(!isBusinessId(req.params.id)){res.status(400).json({message:"Invalid customer ID"});return;}
     try {
-        const result = await pool.query(
-            `
-            SELECT
-                customer_id,
-                customer_name,
-                customer_hp,
-                created_at
-            FROM customer
-            WHERE customer_id = $1
-            `,
-            [id]
-        );
-
-        if (result.rows.length === 0) {
-            res.status(404).json({
-                message: "Customer not found"
-            });
-            return;
-        }
-
+        const result=await pool.query(`SELECT ${customerManagementColumns} FROM customer c WHERE c.customer_id=$1`,[req.params.id]);
+        if(!result.rowCount){res.status(404).json({message:"Customer not found"});return;}
         res.json(result.rows[0]);
-    } catch (error) {
-        logServerError("Error fetching customer:", error);
-
-        res.status(500).json({
-            message: "Internal server error"
-        });
-    }
+    } catch(error) {logServerError("Error fetching customer:",error);res.status(500).json({message:"Failed to load customer"});}
 }
-
 export async function createCustomer(
     req: Request,
     res: Response
 ): Promise<void> {
     const { customer_name, customer_hp } = req.body;
 
-    if (!customer_name || !customer_hp) {
+    if (!isText(customer_name,100) || !isText(customer_hp,20)) {
         res.status(400).json({
             message: "Customer name and phone number are required"
         });
@@ -94,9 +48,9 @@ export async function createCustomer(
                 customer_id,
                 customer_name,
                 customer_hp,
-                created_at
+                created_at, is_archived
             `,
-            [customer_name, customer_hp]
+            [customer_name.trim(), customer_hp.trim()]
         );
 
         res.status(201).json(result.rows[0]);
@@ -114,9 +68,10 @@ export async function updateCustomer(
     res: Response
 ): Promise<void> {
     const { id } = req.params;
+    if(!isBusinessId(id)){res.status(400).json({message:"Invalid customer ID"});return;}
     const { customer_name, customer_hp } = req.body;
 
-    if (!customer_name || !customer_hp) {
+    if (!isText(customer_name,100) || !isText(customer_hp,20)) {
         res.status(400).json({
             message: "Customer name and phone number are required"
         });
@@ -135,9 +90,9 @@ export async function updateCustomer(
                 customer_id,
                 customer_name,
                 customer_hp,
-                created_at
+                created_at, is_archived
             `,
-            [customer_name, customer_hp, id]
+            [customer_name.trim(), customer_hp.trim(), id]
         );
 
         if (result.rows.length === 0) {
@@ -157,55 +112,18 @@ export async function updateCustomer(
     }
 }
 
-export async function deleteCustomer(
-    req: Request,
-    res: Response
-): Promise<void> {
-    const { id } = req.params;
-
-    try {
-        const result = await pool.query(
-            `
-            DELETE FROM customer
-            WHERE customer_id = $1
-            RETURNING
-                customer_id,
-                customer_name,
-                customer_hp
-            `,
-            [id]
-        );
-
-        if (result.rows.length === 0) {
-            res.status(404).json({
-                message: "Customer not found"
-            });
-            return;
-        }
-
-        res.json({
-            message: "Customer deleted successfully",
-            customer: result.rows[0]
-        });
-    } catch (error) {
-        logServerError("Error deleting customer:", error);
-
-        res.status(500).json({
-            message: "Internal server error"
-        });
-    }
-}
+export {deleteCustomer} from "./recordManagementController";
 
 export async function getCustomerOverview(req: Request, res: Response): Promise<void> {
     const id = req.params.id;
     if (!isBusinessId(id)) { res.status(400).json({ message: "Invalid customer ID" }); return; }
     try {
         const customerResult = await pool.query(
-            "SELECT customer_id,customer_name,customer_hp FROM customer WHERE customer_id=$1",[id],
+            `SELECT ${customerManagementColumns} FROM customer c WHERE c.customer_id=$1`,[id],
         );
         if (!customerResult.rowCount) { res.status(404).json({message:"Customer not found"}); return; }
         const [pets,totals] = await Promise.all([
-            pool.query("SELECT pet_id,customer_id,pet_name,pet_type,pet_remark FROM pet WHERE customer_id=$1 ORDER BY pet_name,pet_id",[id]),
+            pool.query(`SELECT ${petManagementColumns} FROM pet p WHERE p.customer_id=$1 ORDER BY p.is_archived,p.pet_name,p.pet_id`,[id]),
             pool.query(customerChargesCte + `
                 SELECT COUNT(*)::integer AS completed_visits,COALESCE(SUM(amount_due),0) AS total_spending
                 FROM appointment_charges WHERE customer_id=$1 AND status='COMPLETED'`,[id]),

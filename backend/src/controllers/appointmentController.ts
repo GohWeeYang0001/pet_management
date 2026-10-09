@@ -1,3 +1,4 @@
+import { validateBookingRequired } from "../business/bookingValidation";
 import { logServerError } from "../logging";
 import { Request, Response } from "express";
 import { pool } from "../db";
@@ -12,6 +13,7 @@ export async function createAppointment(req: Request, res: Response): Promise<vo
     const { customer_id, appointment_date, start_time, remark, status } = body;
     let client;
     try {
+        validateBookingRequired(body,false);
         if ((status !== undefined && status !== "CONFIRMED") || !isBusinessId(customer_id)
             || !isDateOnly(appointment_date) || !isTime(start_time) || !isOptionalText(remark)) {
             throw new BusinessError(400, "Customer, date, time and at least one pet are required");
@@ -19,8 +21,9 @@ export async function createAppointment(req: Request, res: Response): Promise<vo
         const rows = bookingPets(body.pets, false);
         client = await pool.connect();
         await client.query("BEGIN");
-        const customer = await client.query("SELECT customer_id FROM customer WHERE customer_id=$1 FOR SHARE",[customer_id]);
-        if (!customer.rowCount) throw new BusinessError(404,"Customer not found");
+        const customer = await client.query("SELECT customer_id,is_archived FROM customer WHERE customer_id=$1 FOR SHARE",[customer_id]);
+        if (!customer.rowCount) throw new BusinessError(404,"客户不存在，请重新选择","BOOKING_VALIDATION",[{field:"customer",message:"客户不存在，请重新选择"}]);
+        if(customer.rows[0].is_archived) throw new BusinessError(409,"该客户已归档，请选择其他客户。","BOOKING_VALIDATION",[{field:"customer",message:"该客户已归档"}]);
         const pets = await prepareBookingPets(client,customer_id,rows);
         const extras = await bookingExtras(client,customer_id,body);
         const inserted = await client.query<{ appointment_id: string }>(
@@ -155,6 +158,7 @@ export async function editAppointment(req: Request, res: Response): Promise<void
     const {appointment_date,start_time,remark} = body;
     let client;
     try {
+        validateBookingRequired(body,true);
         if (!isBusinessId(id) || !isDateOnly(appointment_date) || !isTime(start_time) || !isOptionalText(remark)) {
             throw new BusinessError(400,"Valid date, time and at least one pet with a service are required");
         }
@@ -164,6 +168,7 @@ export async function editAppointment(req: Request, res: Response): Promise<void
         const result = await client.query("SELECT * FROM appointment WHERE appointment_id=$1 FOR UPDATE",[id]);
         if (!result.rowCount) throw new BusinessError(404,"Appointment not found");
         const current = result.rows[0];
+        validateBookingRequired(body,true,current);
         if (current.status !== "CONFIRMED") throw new BusinessError(409,"Only confirmed appointments can be edited");
         await client.query("SELECT customer_id FROM customer WHERE customer_id=$1 FOR SHARE",[current.customer_id]);
         const previousPets = await existingBookingPets(client,String(id));

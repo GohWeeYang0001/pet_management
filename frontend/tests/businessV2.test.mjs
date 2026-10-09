@@ -302,3 +302,100 @@ test("load-more failure preserves prior records and retries the same offset with
     assert.equal(store.get("1").error,false);assert.equal(store.get("1").appointments.length,2);
     assert.deepEqual(offsets,[0,10,10]);assert.equal(store.get("1").nextOffset,null);
 });
+
+test("appointment validation names every missing field/pet and clears corrected inline issues",()=>{
+    const {bookingIssues,bookingFieldSignature,mapBookingField}=load("src/utils/bookingValidation.ts");
+    const input={customerId:"1",date:"2026-10-09",time:"10:00",rows:[{...row,service_id:"",addonIds:[]},{...business.emptyPetDraft(2),pet_id:"2"}],pets,services:catalog,
+        extras:{...business.initialExtras(),addressReady:true,travelReady:true}};
+    const issues=bookingIssues(input);
+    assert.deepEqual(issues.map(issue=>issue.label),["服务地址","Bobby 的基础服务","Kitty 的基础服务","上门交通费"]);
+    const summary=renderToStaticMarkup(React.createElement(load("src/components/appointments/BookingValidation.tsx").ValidationSummary,{issues}));
+    assert.match(summary,/请完成以下必填项/);assert.match(summary,/Bobby 的基础服务/);assert.match(summary,/Kitty 的基础服务/);
+    const fixed={...input,rows:[row,{...input.rows[1],service_id:"2"}],extras:{...input.extras,addressId:"1",optionId:"1",travelLabel:"5公里以内",presetAmount:2,travelChanged:true}};
+    assert.deepEqual(bookingIssues(fixed),[]);
+    assert.equal(mapBookingField("pets.1.service_id",input.rows),"base-2");
+    assert.equal(bookingFieldSignature(input,"base-1"),bookingFieldSignature({...input,rows:[{...input.rows[0],remark:"changed"},input.rows[1]]},"base-1"));
+    assert.notEqual(bookingFieldSignature(input,"base-1"),bookingFieldSignature(fixed,"base-1"));
+    assert.ok(bookingIssues({...fixed,rows:[]}).some(issue=>issue.field==="pets"));
+    assert.ok(bookingIssues({...fixed,date:"2026-02-30",time:""}).some(issue=>issue.field==="date"));
+});
+
+test("optional addons/breed/remarks remain optional; archived pets can only be retained in original edit rows",()=>{
+    const {bookingIssues}=load("src/utils/bookingValidation.ts");
+    const valid={customerId:"1",date:"2026-10-09",time:"10:00",rows:[{...row,addonIds:[],remark:""}],pets,services:catalog,
+        extras:{...business.initialExtras(),addressId:"1",addressReady:true,travelReady:true,optionId:"1",travelLabel:"Fee",presetAmount:0,travelChanged:true}};
+    assert.deepEqual(bookingIssues(valid),[]);
+    assert.ok(bookingIssues({...valid,pets:pets.map(p=>({...p,is_archived:true}))}).some(issue=>issue.field==="pet-1"));
+    assert.deepEqual(bookingIssues({...valid,rows:[{...valid.rows[0],appointment_pet_id:1}],pets:pets.map(p=>({...p,is_archived:true})),appointment}),[]);
+});
+
+test("appointment wrappers have no focus outline; error borders require submitted issues and clear on correction",()=>{
+    const css=readFileSync(resolve(root,"src/businessV2.css"),"utf8");
+    assert.match(css,/\.sheet-form :is\(label,section,fieldset\)\[data-validation-field\]:focus\s*\{\s*outline:none;\s*\}/);
+    assert.doesNotMatch(css,/\[data-validation-field\]:focus\s*\{[^}]*outline\s*:\s*(?!none\b)[^;]+;/);
+    assert.match(css,/\[aria-invalid="true"\]\s*\{\s*border-color:#fda29b/);
+    const missing={...row,service_id:""};
+    const props={row:missing,pets,services:catalog,onBase:()=>{},onAddons:()=>{}};
+    const normal=render("src/components/appointments/PetServicesFields.tsx",props);
+    assert.match(normal,/aria-label="基础服务" aria-invalid="false"/);
+    assert.doesNotMatch(normal,/class="form-error/);
+    const issue={field:"base-1",label:"Bobby 的基础服务",message:"请选择基础服务",missing:true};
+    const invalid=render("src/components/appointments/PetServicesFields.tsx",{...props,issues:[issue]});
+    assert.match(invalid,/aria-label="基础服务" aria-invalid="true"/);
+    assert.match(invalid,/class="form-error field-validation"/);
+    const corrected=render("src/components/appointments/PetServicesFields.tsx",{...props,row,issues:[]});
+    assert.match(corrected,/aria-label="基础服务" aria-invalid="false"/);
+    assert.doesNotMatch(corrected,/class="form-error/);
+});
+
+test("addon fieldset has no group focus outline while native checkbox controls and errors remain intact",()=>{
+    const css=readFileSync(resolve(root,"src/businessV2.css"),"utf8");
+    assert.match(css,/:is\(label,section,fieldset\)\[data-validation-field\]:focus\s*\{\s*outline:none;\s*\}/);
+    assert.doesNotMatch(css,/\.v2-addon-options[^{}]*\s(?:input|\*)[^{}]*\{[^}]*outline\s*:\s*none/);
+    const props={row,pets,services:catalog,onBase:()=>{},onAddons:()=>{}};
+    const html=render("src/components/appointments/PetServicesFields.tsx",props);
+    assert.match(html,/<fieldset class="v2-addon-options" tabindex="-1" data-validation-field="addons-1">/);
+    assert.equal((html.match(/type="checkbox"/g)??[]).length,3);
+    assert.equal((html.match(/checked=""/g)??[]).length,2);
+    assert.doesNotMatch(html,/<input[^>]*tabindex="-1"/);
+    const issue={field:"addons-1",label:"Bobby 的加购项目",message:"请检查加购项目",missing:false};
+    const invalid=render("src/components/appointments/PetServicesFields.tsx",{...props,issues:[issue]});
+    assert.match(invalid,/id="validation-addons-1" class="form-error field-validation">请检查加购项目/);
+});
+
+test("disabled base-service wrapper and every appointment validation target use the wrapper-only focus rule",()=>{
+    const html=render("src/components/appointments/PetServicesFields.tsx",{
+        row:{...row,pet_id:"",service_id:"",addonIds:[]},pets,services:catalog,onBase:()=>{},onAddons:()=>{},
+    });
+    assert.match(html,/<label tabindex="-1" data-validation-field="base-1">/);
+    assert.match(html,/<select aria-label="基础服务" aria-invalid="false"[^>]*disabled=""/);
+    assert.doesNotMatch(html,/class="form-error/);
+    for(const file of ["src/components/sheets/NewAppointmentSheet.tsx","src/components/appointments/EditAppointmentSheet.tsx",
+        "src/components/appointments/PetServicesFields.tsx","src/components/appointments/AppointmentExtrasFields.tsx"]) {
+        const source=readFileSync(resolve(root,file),"utf8");
+        const targets=[...source.matchAll(/<(\w+)\b[^>]*\bdata-validation-field=/g)];
+        assert.ok(targets.length>0,file);
+        for(const [,tag] of targets) assert.ok(["label","section","fieldset"].includes(tag),`${file}: ${tag}`);
+    }
+    const css=readFileSync(resolve(root,"src/businessV2.css"),"utf8");
+    // Every outline reset in this stylesheet is scoped to the wrapper itself,
+    // not a descendant control or a blanket focus/focus-within selector.
+    const resetRules=[...css.matchAll(/([^{}]+)\{[^}]*outline\s*:\s*none[^}]*\}/g)];
+    assert.equal(resetRules.length,1);
+    assert.ok(resetRules[0][1].trim().endsWith(".sheet-form :is(label,section,fieldset)[data-validation-field]:focus"));
+    assert.doesNotMatch(css,/:focus-within/);
+});
+
+test("shared sheet header has no close icon or reserved button layout and retains accessible dialog",()=>{
+    const html=render("src/components/sheets/BottomSheet.tsx",{title:"编辑预约",subtitle:"QA 客户",onClose:()=>{},children:React.createElement("p",null,"内容")});
+    assert.match(html,/role="dialog" aria-modal="true" aria-labelledby="sheet-title"/);
+    assert.match(html,/tabindex="-1"/);
+    assert.match(html,/<h2 id="sheet-title">编辑预约<\/h2>/);
+    assert.match(html,/sheet-subtitle/);
+    assert.doesNotMatch(html,/sheet-close|×|<button/);
+    const css=readFileSync(resolve(root,"src/index.css"),"utf8");
+    assert.doesNotMatch(css,/\.sheet-close/);
+    for(const rule of css.matchAll(/\.sheet-header\s*\{([^}]+)\}/g)) {
+        assert.doesNotMatch(rule[1],/space-between|gap:/);
+    }
+});

@@ -9,7 +9,7 @@ export default function AppointmentV2Details({ appointment, compact = false }: {
     const hasLocation = location.label || location.address_text || location.map_url || location.latitude != null;
     return <div className={compact ? "v2-details" : "detail-pets v2-details"}>
         {appointment.pets.map((pet,index) => <section className={compact ? "v2-history-pet" : "detail-pet"} key={pet.appointment_pet_id ?? index}>
-            <h3>{pet.pet_name}</h3>
+            <h3>{pet.pet_name}{pet.is_archived&&<span className="record-tag">已归档</span>}</h3>
             {pet.pet_type && <p className="form-hint">品种：{displayPetType(pet.pet_type)}</p>}
             <p className="v2-price-line"><span>基础服务：{pet.service_name_snapshot ?? pet.service_name}</span><span>{quoteLabel(pet.base_price_snapshot)}</span></p>
             {pet.base_price_snapshot == null && <p className="form-hint">原基础价格未记录。</p>}

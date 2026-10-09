@@ -17,7 +17,7 @@ function AppointmentDetailSheet({ appointment, onClose, onComplete, onEdit, onCa
     return (
         <BottomSheet title="预约详情" subtitle={appointment.customer_name} onClose={onClose}>
             <div className="detail-summary">
-                <h3>{appointment.customer_name}</h3>
+                <h3>{appointment.customer_name}{appointment.customer_is_archived&&<span className="record-tag">已归档</span>}</h3>
                 <a href={`tel:${appointment.customer_hp}`}>{appointment.customer_hp}</a>
                 <p>{formatAppointmentDate(appointment.appointment_date)} · {formatAppointmentTime(appointment.start_time)}</p>
                 <span className={`status-badge status-${appointment.status.toLowerCase()}`}>{appointmentStatusLabels[appointment.status]}</span>

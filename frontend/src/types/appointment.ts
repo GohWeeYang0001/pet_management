@@ -6,6 +6,7 @@ export interface AppointmentAddon {
 }
 
 export interface AppointmentPet {
+    is_archived?: boolean;
     appointment_pet_id: number;
     pet_id: number;
     pet_name: string;
@@ -29,6 +30,7 @@ export type AppointmentStatus =
     | "CANCELLED";
 
 export interface Appointment {
+    customer_is_archived?: boolean;
     appointment_id: string;
     appointment_date: string;
     start_time: string;

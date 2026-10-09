@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { pool } from "../src/db";
 import { baseUrl, createTestUser, loginTestUser, withSession } from "./authFixture";
 import { runBusinessV2Workflow } from "./businessV2Smoke";
+import { runCustomerPetManagementSmoke } from "./customerPetManagementSmoke";
 const marker = `Codex workflow QA ${randomUUID()}`;
 let customerId: string | null = null;
 let otherCustomerId: string | null = null;
@@ -12,6 +13,7 @@ const extraExpenseIds: Array<{ id: string; itemName: string }> = [];
 let inventoryId: string | null = null;
 let serviceId: string | null = null;
 let travelOptionId: string | null = null;
+let bookingAddressId:string|null=null;
 let authUser: Awaited<ReturnType<typeof createTestUser>> | null = null;
 let sessionCookie = "";
 
@@ -27,7 +29,7 @@ async function expectStatus(path: string, init: RequestInit, status: number): Pr
 }
 
 function json(method: string, body: object): RequestInit {
-    const input = method === "POST" && "appointment_date" in body ? {...body,travel_fee_option_id:travelOptionId,travel_fee_label:marker,travel_fee_amount:0} : body;
+    const input = method === "POST" && "appointment_date" in body ? {...body,customer_address_id:bookingAddressId,travel_fee_option_id:travelOptionId,travel_fee_label:marker,travel_fee_amount:0} : body;
     return { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) };
 }
 
@@ -100,6 +102,7 @@ async function main(): Promise<void> {
         authUser = await createTestUser();
         sessionCookie = await loginTestUser(authUser);
         await runBusinessV2Workflow(sessionCookie);
+        await runCustomerPetManagementSmoke(sessionCookie);
         travelOptionId = (await request<{travel_fee_option_id:string}>("/api/travel-fee-options",json("POST",{label:marker,amount:0,is_active:true,sort_order:999}))).travel_fee_option_id;
         const service = await request<{ service_id: string }>("/api/services", json("POST", {
             service_name: marker, default_price: 10,
@@ -115,6 +118,7 @@ async function main(): Promise<void> {
             customer_hp: "0000000000",
         }));
         customerId = customer.customer_id;
+        bookingAddressId=(await request<{address_id:string}>(`/api/customers/${customerId}/addresses`,json("POST",{label:marker,address_text:"QA address"}))).address_id;
 
         const otherCustomer = await request<{ customer_id: string }>("/api/customers", json("POST", {
             customer_name: `${marker} other`, customer_hp: "0000000001",

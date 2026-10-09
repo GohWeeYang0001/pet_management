@@ -179,10 +179,9 @@ button:focus-visible, [role="button"]:focus-visible { outline: 3px solid rgba(37
 }
 
 .sheet-handle { width: 42px; height: 4px; margin: 0 auto 10px; border-radius: 99px; background: #d0d5dd; }
-.sheet-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 2px 0 15px; }
+.sheet-header { padding: 2px 0 15px; }
 .sheet-header h2 { margin: 0 0 3px; color: #17212b; font-size: 1.25rem; }
 .sheet-subtitle { margin: 0; color: #667085; font-size: .88rem; }
-.sheet-close { display: grid; width: 44px; height: 44px; flex: 0 0 auto; place-items: center; border: 0; border-radius: 50%; color: #475467; background: #f2f4f7; font-size: 1.55rem; line-height: 1; cursor: pointer; }
 
 .appointment-list { display: grid; gap: 10px; }
 .appointment-card { display: block; width: 100%; position: relative; padding: 14px 42px 14px 15px; border: 1px solid #eaecf0; border-left: 4px solid #98a2b3; border-radius: 14px; background: #fff; box-shadow: 0 2px 8px rgba(16, 24, 40, .04); text-align: left; cursor: pointer; }
@@ -421,7 +420,7 @@ fieldset.form-card { padding: 15px; }
         border-radius: 18px 18px 0 0;
     }
     .sheet-handle { margin-bottom: 6px; }
-    .sheet-header { gap: 8px; padding-bottom: 8px; }
+    .sheet-header { padding-bottom: 8px; }
     .sheet-header h2 { margin-bottom: 2px; font-size: 1.0625rem; }
     .sheet-subtitle, .form-hint { font-size: .8125rem; line-height: 1.35; }
     .sheet-form, .appointment-fields { gap: 8px; }

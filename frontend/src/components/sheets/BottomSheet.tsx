@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 
 interface BottomSheetProps {
     title: string;
@@ -8,6 +8,13 @@ interface BottomSheetProps {
 }
 
 function BottomSheet({ title, subtitle, onClose, children }: BottomSheetProps) {
+    const dialogRef = useRef<HTMLElement>(null);
+
+    useEffect(() => {
+        // Keep initial focus inside the sheet without opening a native picker/keyboard.
+        dialogRef.current?.focus({ preventScroll: true });
+    }, []);
+
     useEffect(() => {
         const originalOverflow = document.body.style.overflow;
 
@@ -32,6 +39,8 @@ function BottomSheet({ title, subtitle, onClose, children }: BottomSheetProps) {
             if (event.target === event.currentTarget) onClose();
         }} role="presentation">
             <section
+                ref={dialogRef}
+                tabIndex={-1}
                 className="bottom-sheet"
                 role="dialog"
                 aria-modal="true"
@@ -43,15 +52,6 @@ function BottomSheet({ title, subtitle, onClose, children }: BottomSheetProps) {
                         <h2 id="sheet-title">{title}</h2>
                         {subtitle && <p className="sheet-subtitle">{subtitle}</p>}
                     </div>
-                    <button
-                        className="sheet-close"
-                        type="button"
-                        aria-label="关闭"
-                        onClick={onClose}
-                        autoFocus
-                    >
-                        ×
-                    </button>
                 </header>
                 {children}
             </section>

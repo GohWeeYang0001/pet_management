@@ -5,8 +5,18 @@ function petsUrl(customerId: string): string {
     return `${API_BASE_URL}/api/customers/${encodeURIComponent(customerId)}/pets`;
 }
 
-export async function getCustomerPets(customerId: string): Promise<Pet[]> {
-    return readResponse<Pet[]>(await apiFetch(petsUrl(customerId)));
+export async function getCustomerPets(customerId: string,includeArchived=false): Promise<Pet[]> {
+    return readResponse<Pet[]>(await apiFetch(petsUrl(customerId)+(includeArchived?"?include_archived=true":"")));
+}
+
+export async function getPetManagementState(customerId:string,petId:string):Promise<Pet> {
+    return readResponse(await apiFetch(`${petsUrl(customerId)}/${encodeURIComponent(petId)}`));
+}
+export async function deletePet(customerId:string,petId:string):Promise<void> {
+    await readResponse(await apiFetch(`${petsUrl(customerId)}/${encodeURIComponent(petId)}`,{method:"DELETE"}));
+}
+export async function setPetArchived(customerId:string,petId:string,is_archived:boolean):Promise<void> {
+    await readResponse(await apiFetch(`${petsUrl(customerId)}/${encodeURIComponent(petId)}/archive`,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({is_archived})}));
 }
 
 export async function createPet(

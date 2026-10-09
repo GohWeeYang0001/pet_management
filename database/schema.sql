@@ -7,6 +7,7 @@ CREATE TABLE customer (
     customer_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     customer_name VARCHAR(100) NOT NULL,
     customer_hp VARCHAR(20) NOT NULL,
+    is_archived BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -16,6 +17,7 @@ CREATE TABLE pet (
     pet_name VARCHAR(100) NOT NULL,
     pet_type VARCHAR(50),
     pet_remark TEXT,
+    is_archived BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT fk_pet_customer
@@ -254,3 +256,7 @@ CREATE TABLE payment (
 CREATE INDEX idx_payment_appointment ON payment (appointment_id);
 CREATE INDEX idx_payment_paid_at ON payment (paid_at);
 -- No payment_status: derive later. COMPLETED eligibility is backend-enforced.
+
+CREATE INDEX idx_appointment_customer ON appointment(customer_id);
+CREATE INDEX idx_appointment_pet_pet ON appointment_pet(pet_id);
+CREATE INDEX idx_pet_customer ON pet(customer_id);

@@ -38,7 +38,7 @@ function petSnapshot(row) {
         const service = services.find(s => s.service_id === String(item.service_id));
         return { appointment_pet_addon_id:nextId++,service_id:Number(service.service_id),service_name_snapshot:service.service_name,price_snapshot:service.default_price };
     });
-    return { appointment_pet_id:row.appointment_pet_id ?? nextId++,pet_id:Number(pet.pet_id),pet_name:pet.pet_name,pet_type:pet.pet_type,
+    return { is_archived:pet.is_archived??false,appointment_pet_id:row.appointment_pet_id ?? nextId++,pet_id:Number(pet.pet_id),pet_name:pet.pet_name,pet_type:pet.pet_type,
         service_id:Number(base.service_id),service_name:base.service_name,default_price:base.default_price,service_name_snapshot:base.service_name,
         base_price_snapshot:base.default_price,quoted_amount:base.default_price + addons.reduce((sum,a) => sum+a.price_snapshot,0),addons,amount:null,remark:row.remark ?? null };
 }
@@ -59,6 +59,16 @@ const appointments = [totals({ appointment_id:'1',appointment_date:today,start_t
 Object.assign(appointments[1],{customer_id:'3',customer_name:customers[2].customer_name,customer_hp:customers[2].customer_hp});
 Object.assign(appointments[1].pets[0],{pet_id:4,pet_type:'混种'}); // Legacy NULL; customer 2 stays empty.
 for (let i=0;i<23;i++) appointments.push(totals({...appointments[0],appointment_id:String(300+i),appointment_date:'2025-01-'+String(i+1).padStart(2,'0'),status:i%2?'CONFIRMED':'COMPLETED',pets:appointments[0].pets.map(p=>({...p,amount:i%2?null:p.quoted_amount}))}));
+function customerMeta(c) {
+    const ownPets=pets.filter(p=>p.customer_id===c.customer_id);
+    const ownAddresses=addresses.filter(a=>a.customer_id===c.customer_id);
+    const history=appointments.some(a=>a.customer_id===c.customer_id||a.pets.some(p=>ownPets.some(own=>String(own.pet_id)===String(p.pet_id))));
+    return {...c,is_archived:c.is_archived??false,pet_count:ownPets.length,address_count:ownAddresses.length,has_appointment_history:history,can_delete:!history};
+}
+function petMeta(p) {
+    const history=appointments.some(a=>a.pets.some(ap=>String(ap.pet_id)===String(p.pet_id)));
+    return {...p,is_archived:p.is_archived??false,has_appointment_history:history,can_delete:!history};
+}
 const api = createHttpServer(async (request,response) => {
     const url = new URL(request.url,'http://127.0.0.1');
     const method = request.method;
@@ -87,17 +97,37 @@ const api = createHttpServer(async (request,response) => {
         if (optionMatch && method === 'PUT') {
             const option=options.find(o=>o.travel_fee_option_id===optionMatch[1]); Object.assign(option,input);return send(option);
         }
-        if (url.pathname === '/api/customers') return send(customers.filter(c => `${c.customer_name} ${c.customer_hp}`.includes(url.searchParams.get('search') ?? '')));
+        if (url.pathname === '/api/customers' && method === 'GET') return send(customers.filter(c=>(url.searchParams.get('include_archived')==='true'||!c.is_archived)&&`${c.customer_name} ${c.customer_hp}`.includes(url.searchParams.get('search')??'')).map(customerMeta));
+        if (url.pathname === '/api/customers' && method === 'POST') {const c={...input,customer_id:String(nextId++),is_archived:false};customers.push(c);return send(customerMeta(c),201);}
+        const recordMatch=url.pathname.match(/^\/api\/customers\/(\d+)(?:\/pets\/(\d+))?(\/archive)?$/);
+        if(recordMatch){
+            const [,id,petId,archive]=recordMatch;
+            const record=petId?pets.find(p=>p.customer_id===id&&p.pet_id===petId):customers.find(c=>c.customer_id===id);
+            if(!record)return send({},404);
+            const meta=petId?petMeta(record):customerMeta(record);
+            if(method==='GET')return send(meta);
+            if(archive&&method==='PATCH'){record.is_archived=input.is_archived;return send({...meta,is_archived:record.is_archived});}
+            if(method==='PUT'){Object.assign(record,input);return send(petId?petMeta(record):customerMeta(record));}
+            if(method==='DELETE'){
+                if(!meta.can_delete)return send({code:'HAS_HISTORY'},409);
+                if(petId)pets.splice(pets.indexOf(record),1);
+                else {customers.splice(customers.indexOf(record),1);for(let i=pets.length-1;i>=0;i--)if(pets[i].customer_id===id)pets.splice(i,1);for(let i=addresses.length-1;i>=0;i--)if(addresses[i].customer_id===id)addresses.splice(i,1);}
+                return send({deleted:meta});
+            }
+        }
         const customerMatch = url.pathname.match(/^\/api\/customers\/(\d+)\/(pets|overview|addresses|appointments)(?:\/(\d+))?$/);
         if (customerMatch) {
             const [,customerId,section,addressId] = customerMatch;
-            if (section === 'pets') return send(pets.filter(p => p.customer_id === customerId));
+            if (section === 'pets') {
+                if(method==='POST'){const p={...input,pet_id:String(nextId++),customer_id:customerId,is_archived:false};pets.push(p);return send(petMeta(p),201);}
+                return send(pets.filter(p=>p.customer_id===customerId&&(url.searchParams.get('include_archived')==='true'||!p.is_archived)).map(petMeta));
+            }
             if (section === 'appointments') {
                 const limit=Number(url.searchParams.get('limit') ?? 10),offset=Number(url.searchParams.get('offset') ?? 0);
                 const data=appointments.filter(a=>a.customer_id===customerId).slice().sort((a,b)=>b.appointment_date.localeCompare(a.appointment_date)||b.start_time.localeCompare(a.start_time)||Number(b.appointment_id)-Number(a.appointment_id));
                 return send({appointments:data.slice(offset,offset+limit),limit,offset,has_more:offset+limit<data.length,next_offset:offset+limit<data.length?offset+limit:null});
             }
-            if (section === 'overview') return send({customer:customers.find(c => c.customer_id === customerId),pets:pets.filter(p => p.customer_id === customerId),
+            if (section === 'overview') return send({customer:customerMeta(customers.find(c => c.customer_id === customerId)),pets:pets.filter(p => p.customer_id === customerId).map(petMeta),
                 completed_visits:appointments.filter(a => a.customer_id === customerId && a.status === 'COMPLETED').length,
                 total_spending:appointments.filter(a => a.customer_id === customerId).reduce((sum,a) => sum+(a.amount_due ?? 0),0),
 });
@@ -121,6 +151,15 @@ const api = createHttpServer(async (request,response) => {
             if (action === 'complete') { input.pets.forEach(p => Object.assign(appointment.pets.find(old => old.appointment_pet_id === p.appointment_pet_id),p)); appointment.status='COMPLETED'; }
             else if (action === 'cancel') appointment.status='CANCELLED';
             else {
+                const issues=[];
+                if(!id&&!input.customer_id)issues.push({field:'customer',message:'请选择客户'});
+                if(!input.appointment_date)issues.push({field:'date',message:'请选择预约日期'});
+                if(!input.start_time)issues.push({field:'time',message:'请选择预约时间'});
+                if(!input.customer_address_id&&!appointment.customer_address_id)issues.push({field:'address',message:'请选择服务地址'});
+                if(!input.pets?.length)issues.push({field:'pets',message:'请至少选择一只宠物'});
+                (input.pets??[]).forEach((p,i)=>{if(!p.service_id)issues.push({field:`pets.${i}.service_id`,message:'请选择基础服务'});});
+                if(issues.length)return send({code:'BOOKING_VALIDATION',field_errors:issues},400);
+                if(!id&&customers.find(c=>c.customer_id===input.customer_id)?.is_archived)return send({code:'BOOKING_VALIDATION',field_errors:[{field:'customer',message:'该客户已归档'}]},409);
                 const option=options.find(o=>o.travel_fee_option_id===input.travel_fee_option_id && o.is_active);
                 if ((!id || appointment.travel_fee_amount == null || 'travel_fee_option_id' in input || 'travel_fee_amount' in input) && (!option || !input.travel_fee_label || input.travel_fee_amount == null || (option.amount != null && option.amount!==input.travel_fee_amount))) return send({error:'Select active travel option'},400);
                 const {pets:rows,travel_fee_option_id:_selectionId,...rest} = input;
