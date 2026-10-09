@@ -73,12 +73,12 @@ export async function prepareBookingPets(
             ?? current.get(String(row.appointment_pet_id))?.addon_ids ?? [],
     }));
     const petIds = [...new Set(rows.map(row => String(row.pet_id)))];
-    const petResult = await client.query<{ pet_id: string }>(
-        "SELECT pet_id FROM pet WHERE customer_id = $1 AND pet_id = ANY($2::bigint[]) ORDER BY pet_id FOR SHARE",
+    const petResult = await client.query<{ pet_id: string;is_archived:boolean }>(
+        "SELECT pet_id,is_archived FROM pet WHERE customer_id = $1 AND pet_id = ANY($2::bigint[]) ORDER BY pet_id FOR SHARE",
         [customerId, petIds],
     );
     const pets = new Map(petResult.rows.map(row => [String(row.pet_id), row]));
-    if (pets.size !== petIds.length) throw new BusinessError(400, "Choose pets belonging to this customer");
+    if (pets.size !== petIds.length) throw new BusinessError(400,"请选择该客户的有效宠物","BOOKING_VALIDATION",rows.flatMap((row,index)=>pets.has(String(row.pet_id))?[]:[{field:`pets.${index}.pet_id`,message:"宠物不属于该客户或已删除，请重新选择"}]));
     const serviceIds = [...new Set(selections.flatMap(s => [String(s.row.service_id), ...s.addonIds]))];
     // Lock all catalog rows in deterministic order before inserting any references.
     const serviceResult = await client.query<CatalogService>(
@@ -86,21 +86,22 @@ export async function prepareBookingPets(
          FROM service WHERE service_id = ANY($1::bigint[]) ORDER BY service_id FOR SHARE`, [serviceIds],
     );
     const services = new Map(serviceResult.rows.map(row => [String(row.service_id), row]));
-    function eligible(id: string, kind: ServiceKind, retained: boolean): CatalogService {
+    function eligible(id: string, kind: ServiceKind, retained: boolean,field:string): CatalogService {
         const service = services.get(id);
-        if (!service || service.service_kind !== kind) throw new BusinessError(400, "Select an existing " + kind + " service");
+        if (!service || service.service_kind !== kind) throw new BusinessError(400,"服务不可用，请重新选择","BOOKING_VALIDATION",[{field,message:kind==="BASE"?"请选择有效基础服务":"请选择有效加购项目"}]);
         if (!retained && !service.is_active) {
-            throw new BusinessError(400, "New service selections must be active");
+            throw new BusinessError(400,"服务已停用，请重新选择","BOOKING_VALIDATION",[{field,message:kind==="BASE"?"基础服务已停用，请重新选择":"加购项目已停用，请重新选择"}]);
         }
         // Even a retained selection must have a valid price if a snapshot is known.
         if (service.default_price !== null) quotedPetAmount(service.default_price, []);
         return service;
     }
-    return selections.map(({ row, previous, addonIds }) => {
+    return selections.map(({ row, previous, addonIds },index) => {
         const samePet = previous?.pet_id === String(row.pet_id);
-        const base = eligible(String(row.service_id), "BASE", !!samePet && previous?.service_id === String(row.service_id));
+        if(pets.get(String(row.pet_id))?.is_archived && !samePet) throw new BusinessError(409,"该宠物已归档，不能添加到新预约。","BOOKING_VALIDATION",[{field:`pets.${index}.pet_id`,message:"该宠物已归档，请重新选择"}]);
+        const base = eligible(String(row.service_id), "BASE", !!samePet && previous?.service_id === String(row.service_id),`pets.${index}.service_id`);
         const addonServices = addonIds.map(id => {
-            const addon = eligible(id, "ADDON", !!samePet && !!previous?.addon_ids.includes(id));
+            const addon = eligible(id, "ADDON", !!samePet && !!previous?.addon_ids.includes(id),`pets.${index}.addons`);
             if (addon.default_price === null) throw new BusinessError(400, "Add-ons require a configured default price");
             return addon;
         });
@@ -170,7 +171,7 @@ export async function bookingExtras(
                 "SELECT * FROM customer_address WHERE address_id=$1 AND customer_id=$2 FOR SHARE", [selected, customerId],
             );
             if (!result.rowCount || (!same && !result.rows[0].is_active)) {
-                throw new BusinessError(400, "Select an active address belonging to this customer");
+                throw new BusinessError(400, "请选择该客户的有效服务地址","BOOKING_VALIDATION",[{field:"address",message:"服务地址不可用，请重新选择"}]);
             }
             if (!same) {
                 const address = result.rows[0];
@@ -192,7 +193,7 @@ export async function bookingExtras(
     const selecting = ["travel_fee_option_id","travel_fee_label","travel_fee_amount"].some(key=>own(body,key));
     if (requiresChoice || selecting) {
         if (!isBusinessId(body.travel_fee_option_id) || !isText(body.travel_fee_label,100) || !isMoney(body.travel_fee_amount)) {
-            throw new BusinessError(400,"Select an active travel fee option and supply its label and amount");
+            throw new BusinessError(400,"请选择有效上门交通费并填写金额","BOOKING_VALIDATION",[{field:"travel",message:"请选择有效上门交通费并填写金额"}]);
         }
         const option = (await client.query(
             "SELECT label,amount FROM travel_fee_option WHERE travel_fee_option_id=$1 AND is_active=TRUE FOR SHARE",
@@ -200,7 +201,7 @@ export async function bookingExtras(
         )).rows[0];
         if (!option || body.travel_fee_label.trim() !== option.label
             || (option.amount !== null && body.travel_fee_amount !== Number(option.amount))) {
-            throw new BusinessError(400,"Travel fee option is unavailable or changed; select its current label and price");
+            throw new BusinessError(400,"交通费选项已变化，请重新选择","BOOKING_VALIDATION",[{field:"travel",message:"交通费选项已变化，请重新选择"}]);
         }
         extras.travel_fee_label = option.label;
         extras.travel_fee_amount = body.travel_fee_amount;

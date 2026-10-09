@@ -33,3 +33,20 @@
 .sheet-form .v2-pet-card { padding:8px; border-color:#eef0f3; border-radius:8px; background:#fafbfc; box-shadow:none; }
 .sheet-form .v2-pet-card h4 { margin:0; font-size:.875rem; font-weight:650; color:#475467; overflow-wrap:anywhere; }
 .v2-customer-history { min-width:0; }
+.booking-validation-summary { padding:10px; border:1px solid #fecdca; border-radius:10px; background:#fff6f5; color:#b42318; font-size:.875rem; }
+.booking-validation-summary ul { margin:6px 0 0; padding-left:20px; }
+.field-validation { margin:0; }
+.sheet-form .appointment-time-fields > label { align-content:start; }
+[data-validation-field] { scroll-margin-top:8px; }
+/* Validation wrappers are scroll/focus targets, not interactive controls.
+   Suppress only their own outline; native input/select/checkbox focus is untouched. */
+.sheet-form :is(label,section,fieldset)[data-validation-field]:focus { outline:none; }
+/* Only submitted validation issues set aria-invalid; focus/blur alone are not errors. */
+.sheet-form :is(input,textarea,select)[aria-invalid="true"] { border-color:#fda29b; }
+.record-actions { display:flex; flex-wrap:wrap; gap:4px 10px; }
+.record-tag { display:inline-block; margin-left:6px; padding:2px 6px; border-radius:6px; background:#f2f4f7; color:#667085; font-size:.8125rem; }
+.record-danger { color:#b42318; }
+.pet-management-row > div { min-width:0; overflow-wrap:anywhere; }
+.pet-management-row .record-actions { flex:0 1 55%; justify-content:flex-end; }
+.customer-archive-filter { display:flex; align-items:center; gap:8px; min-height:44px; }
+.customer-archive-filter input { width:20px; height:20px; min-height:20px; padding:0; flex:0 0 20px; }

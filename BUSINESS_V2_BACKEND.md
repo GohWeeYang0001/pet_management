@@ -105,7 +105,7 @@ pet/service/addon/location/charge details and scoped canonical pet aggregation.
 There is no unlimited detailed-history query or history COUNT query. All V2
 snapshots, statuses and backend-calculated quote/final totals remain available.
 
-## Customer addresses (unchanged)
+## Customer addresses / required booking address
 
 GET/POST /api/customers/:id/addresses; PUT /api/customers/:id/addresses/:addressId.
 GET includes active/inactive addresses, active/default first. Label is required free
@@ -119,9 +119,39 @@ default; defaults serialize under a customer lock, with one active default enfor
 by the database. Deactivation clears its default flag but does not pick a replacement.
 The employee UI requires text or link and has no manual coordinate editor.
 
-Appointment customer_address_id is optional. New/different selection must be active
+New bookings and legacy booking edits require a service-address reference at the API/form layer; historical NULL columns/reads remain valid. New/different selection must be active
 and owned; it copies location snapshots. Same ID preserves snapshots even if edited
-or inactive. Omitted reference preserves; explicit NULL clears all address snapshots.
+or inactive. Omitted reference preserves a recorded address. Clearing the reference
+is rejected by booking validation; legacy NULL bookings must choose an address when edited.
+
+## Customer/pet record management (migration 005)
+
+Customer and pet rows have is_archived=false by default. List APIs exclude archived
+rows by default; include_archived=true enables management/retention views. Overview
+and direct/historical GETs still resolve archived records normally. Responses expose
+is_archived, has_appointment_history and can_delete; customer management state also
+includes actual pet_count/address_count (including archived/inactive owned records).
+
+Customer PUT and nested pet PUT retain the existing editable name/contact/breed/remark
+fields. DELETE /api/customers/:id and DELETE /api/customers/:customerId/pets/:petId
+allow permanent deletion only without history/references. Any appointment status
+counts. Customer deletion removes only owned pets/addresses through existing FKs;
+appointments are never cascade-deleted. Transaction locks serialize deletion against
+booking. FK-conflict fallback returns a safe 409/HAS_HISTORY, not SQL details.
+
+PATCH /api/customers/:id/archive and nested /pets/:petId/archive accept
+{is_archived:boolean}; false restores. GET nested /pets/:petId returns fresh state
+for confirmations. Customer DELETE accepts optional expected_pet_count and
+expected_address_count; mismatches return 409/RECORD_CHANGED for reconfirmation.
+
+New appointments reject archived customers/pets. Confirmed edits may retain an
+already referenced archived customer/pet, but cannot newly add an archived pet.
+Archive status is unrelated to appointment completion or future payment status.
+
+Booking 400/409 validation errors may include code=BOOKING_VALIDATION and
+field_errors:[{field,message}]. Field paths identify customer/date/time/address/
+travel or pets.N.pet_id/service_id/addons. Only safe application messages are sent;
+internal errors stay sanitized. See CUSTOMER_PET_MANAGEMENT.md for rollout/tests.
 
 ## Validation
 

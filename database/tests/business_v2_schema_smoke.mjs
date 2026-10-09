@@ -255,6 +255,7 @@ try {
     await fixtures(upgrade);
     const before = await snapshot(upgrade);
     await upgrade.query(read("database/migrations/004_business_v2.sql"));
+    await upgrade.query(read("database/migrations/005_customer_pet_archive.sql"));
     assert.deepEqual(await snapshot(upgrade,before),before,"Legacy rows/values changed.");
     await fixtures(fresh);
     await invariants(fresh);
@@ -275,6 +276,35 @@ try {
     }
     await integrity(fresh);
     await integrity(upgrade);
+    // Direct upgrade of an already populated Business V2 database, not only V1.
+    const archiveUpgrade=await database("archive_upgrade");
+    const preArchive=read("database/schema.sql").replace(/^    is_archived BOOLEAN NOT NULL DEFAULT FALSE,\r?\n/gm,"")
+        .replace(/^CREATE INDEX idx_(appointment_customer|appointment_pet_pet|pet_customer).*\r?\n/gm,"");
+    await archiveUpgrade.query(preArchive);await fixtures(archiveUpgrade);
+    await archiveUpgrade.query("INSERT INTO customer_address(customer_id,label,map_url) VALUES(1,'住家','https://maps.apple.com/?q=QA')");
+    await archiveUpgrade.query("UPDATE appointment SET customer_address_id=1,map_url_snapshot='https://maps.apple.com/?q=QA',travel_fee_label='5–7公里',travel_fee_amount=5 WHERE appointment_id=1");
+    await archiveUpgrade.query("INSERT INTO appointment_pet_addon(appointment_pet_id,service_id,service_name_snapshot,price_snapshot) VALUES(1,1,'Historical addon',10)");
+    await archiveUpgrade.query("INSERT INTO payment(appointment_id,amount,payment_method,paid_at,request_key) VALUES(1,20,'CASH',CURRENT_TIMESTAMP,$1)",[randomUUID()]);
+    const archiveTables=[...legacyTables,["customer_address","address_id"],["appointment_pet_addon","appointment_pet_addon_id"],["payment","payment_id"],["travel_fee_option","travel_fee_option_id"]];
+    async function archiveSnapshot(reference) {
+        const result={};
+        for(const [table,id] of archiveTables){
+            const rows=(await archiveUpgrade.query("SELECT * FROM "+table+" ORDER BY "+id)).rows;
+            const keys=reference?.[table]?.keys??Object.keys(rows[0]);
+            result[table]={keys,rows:rows.map(row=>Object.fromEntries(keys.map(key=>[key,row[key]])))};
+        }
+        return JSON.parse(JSON.stringify(result));
+    }
+    const archiveBefore=await archiveSnapshot();
+    await archiveUpgrade.query(read("database/migrations/005_customer_pet_archive.sql"));
+    assert.deepEqual(await archiveSnapshot(archiveBefore),archiveBefore);
+    assert.equal((await archiveUpgrade.query("SELECT COUNT(*)::int AS n FROM customer WHERE is_archived")).rows[0].n,0);
+    assert.equal((await archiveUpgrade.query("SELECT COUNT(*)::int AS n FROM pet WHERE is_archived")).rows[0].n,0);
+    await archiveUpgrade.query("UPDATE customer SET is_archived=TRUE WHERE customer_id=1");
+    await archiveUpgrade.query(read("database/migrations/005_customer_pet_archive.sql"));
+    assert.equal((await archiveUpgrade.query("SELECT is_archived FROM customer WHERE customer_id=1")).rows[0].is_archived,true);
+    assert.deepEqual(await fingerprint(archiveUpgrade),freshShape);
+    console.log("PASS: migration 005 preserves populated V2 customers/pets/appointments/addons/addresses/payments and is safe to rerun without resetting archives.");
     const rollback = await database("rollback");
     await baseline(rollback);
     await fixtures(rollback);

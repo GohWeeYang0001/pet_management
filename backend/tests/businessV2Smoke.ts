@@ -80,7 +80,8 @@ export async function runBusinessV2Workflow(cookie: string): Promise<void> {
         await expect("/api/services?service_kind=other",{method:"GET"},400);
         const defaultTravel=await request<Option>(optionUrl,json("POST",{label:marker+" explicit zero",amount:0,is_active:true,sort_order:999}));
         options.push(String(defaultTravel.travel_fee_option_id));
-        const normal={travel_fee_option_id:defaultTravel.travel_fee_option_id,travel_fee_label:defaultTravel.label,travel_fee_amount:0,customer_id:owner,appointment_date:"2099-05-01",start_time:"10:00",remark:marker,
+        const bookingAddress=await request<Address>("/api/customers/"+owner+"/addresses",json("POST",{label:"QA booking address",address_text:"QA address"}));
+        const normal={customer_address_id:bookingAddress.address_id,travel_fee_option_id:defaultTravel.travel_fee_option_id,travel_fee_label:defaultTravel.label,travel_fee_amount:0,customer_id:owner,appointment_date:"2099-05-01",start_time:"10:00",remark:marker,
             pets:[{pet_id:dog.pet_id,service_id:base.service_id}]};
         await expect("/api/appointments/9223372036854775807",{method:"GET"},404);
         await expect("/api/appointments/not-an-id",{method:"GET"},400);
@@ -105,7 +106,7 @@ export async function runBusinessV2Workflow(cookie: string): Promise<void> {
         }
         const addressUrl="/api/customers/"+owner+"/addresses";
         const home=await request<Address>(addressUrl,json("POST",{label:"Home",address_text:"Original address",
-            map_url:"https://maps.example.invalid/qa",latitude:3.123456,longitude:101.123456}));
+            is_default:true,map_url:"https://maps.example.invalid/qa",latitude:3.123456,longitude:101.123456}));
         assert.equal(home.is_default,true);
         const work=await request<Address>(addressUrl,json("POST",{label:"Work",address_text:"Work address"}));
         assert.equal(work.is_default,false);
@@ -295,12 +296,12 @@ export async function runBusinessV2Workflow(cookie: string): Promise<void> {
         assert.equal(appointment.pets[0].quoted_amount,121.30);assert.equal(appointment.pets[0].service_name,base.service_name);
         await expect("/api/appointments",json("POST",normal),400);
         await expect("/api/appointments/"+appointment.appointment_id,json("PATCH",{...editBody(appointment),pets:appointment.pets.map((p,i)=>({appointment_pet_id:p.appointment_pet_id,pet_id:i===0?cat.pet_id:p.pet_id,service_id:p.service_id}))}),400);
-        await request("/api/appointments/"+appointment.appointment_id,json("PATCH",{...editBody(appointment),customer_address_id:null,
+        await request("/api/appointments/"+appointment.appointment_id,json("PATCH",{...editBody(appointment),customer_address_id:work.address_id,
             pets:appointment.pets.map((p,i)=>({appointment_pet_id:p.appointment_pet_id,pet_id:p.pet_id,service_id:p.service_id,addons:i===0?[{service_id:addonB.service_id}]:[]}))}));
         appointment=await detail(appointment.appointment_id);
         assert.equal(appointment.pets[0].quoted_amount,115.20);assert.equal(appointment.quoted_total,205.20);
-        assert.equal(appointment.customer_address_id,null);assert.equal(appointment.address_text_snapshot,null);
-        assert.equal(appointment.address_label_snapshot,null);assert.equal(appointment.map_url_snapshot,null);
+        assert.equal(appointment.customer_address_id,work.address_id);assert.equal(appointment.address_text_snapshot,"Work address");
+        assert.equal(appointment.address_label_snapshot,"Work");assert.equal(appointment.map_url_snapshot,null);
         assert.equal(appointment.latitude_snapshot,null);assert.equal(appointment.longitude_snapshot,null);
         assert.equal(appointment.travel_fee_amount,20);
         const beforeCompletion=JSON.stringify(appointment.pets.map(p=>p.addons));
@@ -348,7 +349,7 @@ export async function runBusinessV2Workflow(cookie: string): Promise<void> {
         assert.equal(legacy.travel_fee_amount,null);
         const oldConfirmed=(await pool.query("INSERT INTO appointment(customer_id,appointment_date,start_time,remark) VALUES($1,'2099-05-03','12:00',$2) RETURNING appointment_id",[owner,marker])).rows[0].appointment_id;
         await pool.query("INSERT INTO appointment_pet(appointment_id,pet_id,service_id) VALUES($1,$2,$3)",[oldConfirmed,dog.pet_id,dogBase.service_id]);
-        const legacyBody={appointment_date:"2099-05-03",start_time:"12:30",pets:[{pet_id:dog.pet_id,service_id:dogBase.service_id}]};
+        const legacyBody={customer_address_id:work.address_id,appointment_date:"2099-05-03",start_time:"12:30",pets:[{pet_id:dog.pet_id,service_id:dogBase.service_id}]};
         await expect("/api/appointments/"+oldConfirmed,json("PATCH",legacyBody),400);
         await request("/api/appointments/"+oldConfirmed,json("PATCH",{...legacyBody,travel_fee_option_id:defaultTravel.travel_fee_option_id,travel_fee_label:defaultTravel.label,travel_fee_amount:0}));
         assert.equal((await detail(oldConfirmed)).travel_fee_amount,0);

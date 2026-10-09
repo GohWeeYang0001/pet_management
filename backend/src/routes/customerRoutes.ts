@@ -9,6 +9,7 @@ import {
 } from "../controllers/customerController";
 import { getCustomerOverview, getCustomerAppointments } from "../controllers/customerController";
 import petRoutes from "./petRoutes";
+import { archiveCustomer } from "../controllers/recordManagementController";
 import customerAddressRoutes from "./customerAddressRoutes";
 
 const router = Router();
@@ -24,6 +25,7 @@ router.get("/:id", getCustomerById);
 router.post("/", createCustomer);
 
 router.put("/:id", updateCustomer);
+router.patch("/:id/archive", archiveCustomer);
 
 router.delete("/:id", deleteCustomer);
 

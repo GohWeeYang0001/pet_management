@@ -3,6 +3,10 @@ export interface Customer {
     customer_name: string;
     customer_hp: string;
     pet_count?: number;
+    address_count?: number;
+    is_archived?: boolean;
+    has_appointment_history?: boolean;
+    can_delete?: boolean;
 }
 
 export interface CustomerOverview {
@@ -12,6 +16,9 @@ export interface CustomerOverview {
         pet_name: string;
         pet_type: string | null;
         pet_remark: string | null;
+        is_archived?: boolean;
+        has_appointment_history?: boolean;
+        can_delete?: boolean;
     }>;
     completed_visits: number;
     total_spending: number;

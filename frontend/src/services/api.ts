@@ -5,7 +5,9 @@ export const SESSION_EXPIRED_EVENT = "pet-management-session-expired";
 
 export class ApiError extends Error {
     readonly status: number;
-    constructor(status: number) { super(`Request failed with status ${status}`); this.status = status; }
+    readonly code?:string;
+    readonly fieldErrors?:Array<{field:string;message:string}>;
+    constructor(status: number,code?:string,fieldErrors?:Array<{field:string;message:string}>) { super(`Request failed with status ${status}`); this.status = status;this.code=code;this.fieldErrors=fieldErrors; }
 }
 
 export async function apiFetch(input: RequestInfo | URL, init: RequestInit = {}, notifyUnauthorized = true): Promise<Response> {
@@ -17,6 +19,11 @@ export async function apiFetch(input: RequestInfo | URL, init: RequestInit = {},
 }
 
 export async function readResponse<T>(response: Response): Promise<T> {
-    if (!response.ok) throw new ApiError(response.status);
+    if (!response.ok) {
+        let details:unknown;try {details=await response.json();}catch { /* Non-JSON errors keep a safe generic fallback. */ }
+        const value=details as {code?:unknown;field_errors?:unknown}|undefined;
+        const fields=Array.isArray(value?.field_errors)?value.field_errors.filter((field:unknown):field is {field:string;message:string}=>!!field && typeof field==="object" && "field" in field && "message" in field && typeof field.field==="string" && typeof field.message==="string").slice(0,30):undefined;
+        throw new ApiError(response.status,typeof value?.code==="string"?value.code:undefined,fields);
+    }
     return response.json() as Promise<T>;
 }

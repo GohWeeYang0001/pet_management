@@ -23,7 +23,7 @@ export const customerChargesCte = chargesCte("WHERE appointment_id IN (SELECT ap
 
 const appointmentDetailsSql = `
     SELECT a.appointment_id, TO_CHAR(a.appointment_date, 'YYYY-MM-DD') AS appointment_date,
-           a.start_time, a.status, a.remark, c.customer_id, c.customer_name, c.customer_hp,
+           a.start_time, a.status, a.remark, c.customer_id, c.customer_name, c.customer_hp,c.is_archived AS customer_is_archived,
            a.travel_fee_label, a.travel_fee_amount,
            a.travel_fee_note, a.customer_address_id, a.address_label_snapshot,
            a.address_text_snapshot, a.map_url_snapshot, a.latitude_snapshot,
@@ -33,7 +33,7 @@ const appointmentDetailsSql = `
     LEFT JOIN LATERAL (
         SELECT COALESCE(json_agg(json_build_object(
             'appointment_pet_id', ap.appointment_pet_id, 'pet_id', p.pet_id,
-            'pet_name', p.pet_name, 'pet_type', p.pet_type, 'service_id', s.service_id,
+            'pet_name', p.pet_name, 'is_archived',p.is_archived, 'pet_type', p.pet_type, 'service_id', s.service_id,
             'service_name', COALESCE(ap.service_name_snapshot, s.service_name),
             'service_name_snapshot', ap.service_name_snapshot, 'default_price', s.default_price,
             'base_price_snapshot', ap.base_price_snapshot, 'quoted_amount', ap.quoted_amount,
